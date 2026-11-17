@@ -195,7 +195,7 @@ export class SabhaClient {
     return this.call("GET", `/api/v1/rooms/${roomId}/messages`, { query: page });
   }
 
-  /** Every message in a room (or thread), newest first, paging until `stop` returns true or the room runs out. */
+  /** Every message in a room (or thread), newest first, a page at a time; `break` to stop early. */
   async *allMessages(roomId: number, options: { after?: string; limit?: number } = {}): AsyncGenerator<Message> {
     let before: string | undefined;
     for (;;) {

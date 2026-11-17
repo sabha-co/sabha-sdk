@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { App } from "./app.js";
 import type { Runtime, SabhaEnv } from "./context.js";
 import { ConfigError } from "./errors.js";
-import { due, parseDays } from "./schedule.js";
+import { due, instantAt, parseDays } from "./schedule.js";
 import { FakeSabha } from "./testing/fake-sabha.js";
 
 const env: SabhaEnv = { SABHA_BASE_URL: "https://sabha.test", SABHA_API_KEY: "sabha_app_key_12345" };
@@ -59,6 +59,20 @@ describe("due", () => {
     expect([...parseDays("mon-wed,fri")].sort()).toEqual([1, 2, 3, 5]);
     expect([...parseDays("fri-mon")].sort()).toEqual([0, 1, 5, 6]);
     expect(parseDays("daily").size).toBe(7);
+  });
+});
+
+describe("instantAt", () => {
+  it("finds a local time's instant on both sides of a clock change", () => {
+    expect(new Date(instantAt("2026-03-27", "09:00", "Europe/London")).toISOString()).toBe("2026-03-27T09:00:00.000Z");
+    expect(new Date(instantAt("2026-03-30", "09:00", "Europe/London")).toISOString()).toBe("2026-03-30T08:00:00.000Z");
+    expect(new Date(instantAt("2026-11-16", "17:30", "America/New_York")).toISOString()).toBe("2026-11-16T22:30:00.000Z");
+    expect(new Date(instantAt("2026-11-17", "00:15", "Asia/Kolkata")).toISOString()).toBe("2026-11-16T18:45:00.000Z");
+  });
+
+  it("is the inverse of the local time it names", () => {
+    const instant = instantAt("2026-10-25", "09:00", "Europe/London");
+    expect(due({ at: "09:00", timezone: "Europe/London", days: "daily" }, instant, {} as SabhaEnv)).toBe("2026-10-25");
   });
 });
 

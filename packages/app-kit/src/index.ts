@@ -26,7 +26,7 @@ export {
   type UserEvent,
 } from "./events.js";
 export { consoleLogger, describeError, type LogFields, type Logger } from "./log.js";
-export { due, localTime, parseDays, type Schedule, type ScheduleContext, type ScheduleHandler, type ScheduleSpec } from "./schedule.js";
+export { due, instantAt, localTime, parseDays, type Schedule, type ScheduleContext, type ScheduleHandler, type ScheduleSpec } from "./schedule.js";
 export { stableId } from "./stable-id.js";
 export { SIGNATURE_TOLERANCE_SECONDS, sign, verify, type Verdict } from "./verify.js";
 export { handleWebhook, type WebhookOptions } from "./webhook.js";

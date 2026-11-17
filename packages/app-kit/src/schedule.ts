@@ -99,6 +99,23 @@ export function localTime(instant: number, timezone: string): { date: string; we
   };
 }
 
+/**
+ * The instant a local date and time fall on in a timezone, such as today's 09:00 in
+ * Europe/London. A time the clocks skip lands just after the change.
+ */
+export function instantAt(localDate: string, at: string, timezone: string): number {
+  const [year, month, day] = localDate.split("-").map(Number) as [number, number, number];
+  const minute = parseAt(at);
+  const wall = Date.UTC(year, month - 1, day, Math.floor(minute / 60), minute % 60);
+  let instant = wall;
+  for (let pass = 0; pass < 2; pass++) {
+    const local = localTime(instant, timezone);
+    const [y, m, d] = local.date.split("-").map(Number) as [number, number, number];
+    instant += wall - Date.UTC(y, m - 1, d, Math.floor(local.minute / 60), local.minute % 60);
+  }
+  return instant;
+}
+
 /** Whether a schedule fires at this tick, and the local date of the run when it does. */
 export function due<Env extends SabhaEnv>(spec: ScheduleSpec<Env>, instant: number, env: Env): string | undefined {
   const local = localTime(instant, resolve(spec.timezone, env));

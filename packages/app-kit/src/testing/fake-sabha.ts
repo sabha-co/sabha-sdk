@@ -51,6 +51,17 @@ export class FakeSabha {
     return this.store({ ...message, created_at: new Date(message.at ?? this.tick()).toISOString() });
   }
 
+  /** Adds a reply in a message's thread, as if a person posted it. */
+  reply(parentId: number, message: { body: string; creator: { id: number; name: string }; at?: number }): FakeMessage {
+    return this.seed({ ...message, room_id: this.threadRoomOf(parentId), parent_message_id: parentId });
+  }
+
+  /** Sets the clock: what Sabha stamps the next post with, a second later. */
+  setNow(ms: number): this {
+    this.clock = ms - 1_000;
+    return this;
+  }
+
   edit(id: number, body: string): void {
     const message = this.messages.find((candidate) => candidate.id === id);
     if (message) message.body = body;
