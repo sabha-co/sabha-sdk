@@ -52,7 +52,15 @@ const REPLY_EVENTS = new Set<EventName>(["message_created", "reaction_created"])
 /** Events Sabha never retries: a delivery that can carry a reply is answered or dropped. */
 const UNRETRIED_EVENTS = new Set<EventName>(["message_created", "reaction_created", "command"]);
 
-const timeout = (ms: number) => new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), ms));
+/** Settles with `work`, or "timeout" after `ms`, never leaving the timer behind. */
+async function within<T>(work: Promise<T>, ms: number): Promise<T | "timeout"> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([work, new Promise<"timeout">((resolve) => (timer = setTimeout(() => resolve("timeout"), ms)))]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
 
 type Outcome = { ok: true; value: HandlerResult } | { ok: false; error: unknown };
 
@@ -197,7 +205,7 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
     const runs = routes.map(({ route, index }) => this.run(route, index, event, key, runtime));
     const window = this.windowFor(event, options.inline);
     const settledAll = Promise.all(runs);
-    const first = await (window === undefined ? settledAll : Promise.race([settledAll, timeout(window)]));
+    const first = await (window === undefined ? settledAll : within(settledAll, window));
 
     if (first === "timeout") {
       runtime.waitUntil(settledAll.then((outcomes) => this.deliverAll(event, outcomes, routes.map((r) => r.index), key, runtime, undefined)));

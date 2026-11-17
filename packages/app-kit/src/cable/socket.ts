@@ -140,6 +140,10 @@ type Frame = {
 
 type Outcome = { ready: boolean; terminal?: Error };
 
+function clearTimer(timer: ReturnType<typeof setTimeout> | undefined): void {
+  if (timer !== undefined) clearTimeout(timer);
+}
+
 const abortableSleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve) => {
     if (signal.aborted) return resolve();
@@ -253,18 +257,18 @@ export class CableClient {
         finish();
       };
       const armPhase = (ms: number, why: string) => {
-        clearTimeout(phaseTimer);
+        clearTimer(phaseTimer);
         phaseTimer = setTimeout(() => kill(why), ms);
       };
       const armSilence = () => {
-        clearTimeout(silenceTimer);
+        clearTimer(silenceTimer);
         silenceTimer = setTimeout(() => kill(`no frames for ${this.timeouts.silenceMs} ms`), this.timeouts.silenceMs);
       };
       const finish = () => {
         if (finished) return;
         finished = true;
-        clearTimeout(phaseTimer);
-        clearTimeout(silenceTimer);
+        clearTimer(phaseTimer);
+        clearTimer(silenceTimer);
         this.ready = false;
         if (this.socket === socket) this.socket = undefined;
         if (ready) this.options.onStatus?.(false);
@@ -298,7 +302,7 @@ export class CableClient {
             return;
           case "confirm_subscription":
             if (frame.identifier !== APP_EVENTS_IDENTIFIER) return;
-            clearTimeout(phaseTimer);
+            clearTimer(phaseTimer);
             ready = true;
             this.ready = true;
             this.options.onStatus?.(true);
