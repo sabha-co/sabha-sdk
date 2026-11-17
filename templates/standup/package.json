@@ -1,0 +1,37 @@
+{
+  "name": "sabha-standup",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A standup bot for Sabha: a prompt each morning, replies in its thread, a digest later.",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sabha-co/app-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.6.1",
+    "@cloudflare/workers-types": "5.20261109.1",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.0",
+    "wrangler": "4.159.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "SABHA_BASE_URL": { "description": "Your Sabha's address, such as https://team.sabha.co (with the workspace id after it on Sabha's own hosting)." },
+      "SABHA_API_KEY": { "description": "The app's key, from Settings → Apps in Sabha. Give the app the post and read_messages permissions." },
+      "SABHA_SIGNING_SECRET": { "description": "The app's signing secret, from the same page." },
+      "TRANSPORT": { "description": "webhook (the default) or socket. With socket the app holds a live connection and shows online." },
+      "STANDUP_ROOM_ID": { "description": "The id of the room the standup runs in; the app must be a member." },
+      "STANDUP_TIMEZONE": { "description": "Your team's timezone, such as Europe/London." },
+      "STANDUP_DAYS": { "description": "Which days: mon-fri (the default), daily, or a list such as mon,wed,fri." },
+      "STANDUP_PROMPT_AT": { "description": "When to ask, in local time, such as 09:30." },
+      "STANDUP_DIGEST_AT": { "description": "When to post the digest, such as 16:00." },
+      "STANDUP_PROMPT_TEXT": { "description": "What to ask, if not the default." }
+    }
+  }
+}

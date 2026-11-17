@@ -1,0 +1,10 @@
+# Copy to .dev.vars for `pnpm dev`. Use a dev app of its own (Settings → Apps → Add app), never
+# the deployed app's key: Sabha sends every event to every socket an app has open, so a dev
+# socket on the real app would race the deployed one.
+SABHA_BASE_URL=http://localhost:3000
+SABHA_API_KEY=sabha_app_
+SABHA_SIGNING_SECRET=whsec_
+TRANSPORT=socket
+# Only when Sabha's socket isn't at /cable on the base URL, such as a local AnyCable:
+# SABHA_SOCKET_URL=ws://localhost:8080/cable
+STANDUP_ROOM_ID=

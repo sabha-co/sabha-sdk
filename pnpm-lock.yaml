@@ -196,6 +196,28 @@ importers:
         specifier: ^8.23.0
         version: 8.23.0
 
+  templates/standup:
+    dependencies:
+      '@sabha-co/app-kit':
+        specifier: workspace:*
+        version: link:../../packages/app-kit
+    devDependencies:
+      '@cloudflare/vitest-plugin':
+        specifier: 1.6.1
+        version: 1.6.1(@cloudflare/workers-types@5.20261109.1)(@types/node@24.19.2)(vitest@4.1.12(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2)(esbuild@0.28.2)))
+      '@cloudflare/workers-types':
+        specifier: 5.20261109.1
+        version: 5.20261109.1
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.12(@types/node@24.19.2)(vite@8.3.8(@types/node@24.19.2)(esbuild@0.28.2))
+      wrangler:
+        specifier: 4.159.0
+        version: 4.159.0(@cloudflare/workers-types@5.20261109.1)(@types/node@24.19.2)
+
 packages:
 
   '@babel/code-frame@7.29.7':

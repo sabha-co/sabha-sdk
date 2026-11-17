@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sabha-standup",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-11-01",
+  // A tick every minute: schedules fire at their local time, and in socket mode the tick also
+  // wakes the socket's Durable Object.
+  "triggers": { "crons": ["* * * * *"] },
+  // Holds the socket when TRANSPORT is socket; unused, and free, on webhooks.
+  "durable_objects": { "bindings": [{ "name": "SABHA_SOCKET", "class_name": "SocketHost" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SocketHost"] }],
+  "vars": {
+    "SABHA_BASE_URL": "https://team.sabha.co",
+    "TRANSPORT": "webhook",
+    "STANDUP_ROOM_ID": "",
+    "STANDUP_TIMEZONE": "Europe/London",
+    "STANDUP_DAYS": "mon-fri",
+    "STANDUP_PROMPT_AT": "09:30",
+    "STANDUP_DIGEST_AT": "16:00"
+  },
+  "secrets": { "required": ["SABHA_API_KEY", "SABHA_SIGNING_SECRET"] },
+  "observability": { "enabled": true }
+}
