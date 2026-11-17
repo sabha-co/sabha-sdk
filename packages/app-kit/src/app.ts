@@ -27,7 +27,12 @@ export interface AppOptions {
   inlineReplies?: boolean;
   /** How long a command's handler may take to answer inline. Sabha allows 15 s from when it ran. */
   commandWindowMs?: number;
-  /** How long a message or reaction handler may take to answer inline. Sabha allows 300 s. */
+  /**
+   * How long a message or reaction handler may take to answer inline; 10 s by default. Sabha
+   * would wait 300 s, but it holds one of its few webhook workers for as long as the kit
+   * waits, so a slow handler would hold up other apps' deliveries. Past it, the reply is
+   * posted with `say`. Raise it only for handlers that are always quick.
+   */
   replyWindowMs?: number;
   /** How long any other handler is waited for before Sabha is answered. Sabha allows 30 s. */
   acceptWindowMs?: number;
@@ -103,7 +108,7 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
     this.options = {
       ...(options.inlineReplies === undefined ? {} : { inlineReplies: options.inlineReplies }),
       commandWindowMs: options.commandWindowMs ?? 3_000,
-      replyWindowMs: options.replyWindowMs ?? 280_000,
+      replyWindowMs: options.replyWindowMs ?? 10_000,
       acceptWindowMs: options.acceptWindowMs ?? 25_000,
       ...(options.fetch ? { fetch: options.fetch } : {}),
     };

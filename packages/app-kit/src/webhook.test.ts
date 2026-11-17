@@ -154,6 +154,19 @@ describe("handleWebhook: answers", () => {
     expect(posts(sabha)).toHaveLength(1);
   });
 
+  it("waits 10 s at most for an inline reply, then answers and posts the late text with say", async () => {
+    expect(new App().options.replyWindowMs).toBe(10_000);
+    const { app, deliver, sabha, settle } = setup({ replyWindowMs: 20 });
+    app.mention(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      return "Done";
+    });
+    const result = await deliver(messageEvent(), { timeout: 300 });
+    expect(result.body).toBe("");
+    await settle();
+    expect(posts(sabha)[0]!.body).toMatchObject({ body: "Done" });
+  });
+
   it("posts an object return through say even with inline replies, so it renders the same however quick", async () => {
     const { app, deliver, sabha, settle } = setup();
     app.mention(() => ({ text: "Deployed <https://ci.test/1|build 1>" }));

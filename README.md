@@ -68,12 +68,12 @@ Sabha waits a limited time for an answer. The kit answers inside it and keeps ev
 | Event | The kit answers Sabha | A returned value |
 |---|---|---|
 | `command` | with the first handler's value, if one returns within 3 s | after that, goes to `response_url` (Sabha waits 15 s from the member's command) |
-| a message or reaction | with the first string a handler returns within 280 s, when the key holds `post`; otherwise at once | Sabha posts that string as the reply; anything else is posted with `say` |
+| a message or reaction | with the first string a handler returns within 10 s, when the key holds `post`; otherwise at once | Sabha posts that string as the reply; anything later, or anything else, is posted with `say` |
 | anything else | when its handlers finish, within 25 s | is ignored |
 
 Each handler's value is sent as soon as that handler finishes; a slow handler never holds back a quick one.
 
-Each delivery says how long Sabha waits for it, in `X-Sabha-Timeout`, and the kit ends every window in time for its answer to arrive. The same header says whether Sabha will post a reply: it waits 300 s for a message or reaction it will post a string reply to, with no API call, and 30 s otherwise, when the kit answers at once. A Sabha too old to send the header is judged by the key's permissions instead, read from `GET /me` every few minutes: with `post`, replies go inline. Objects always go through `say`, so they render the same however quick the handler was. `new App({ inlineReplies: false })` (or `true`) overrides the check.
+Each delivery says how long Sabha waits for it, in `X-Sabha-Timeout`, and the kit ends every window in time for its answer to arrive. The same header says whether Sabha will post a reply: it waits 300 s for a message or reaction it will post a string reply to, with no API call, and 30 s otherwise, when the kit answers at once. The kit waits at most 10 s (`replyWindowMs`) for that string even so: Sabha ties up one of its few webhook workers for as long as the kit waits, and a slow handler there holds up every other app's deliveries. A Sabha too old to send the header is judged by the key's permissions instead, read from `GET /me` every few minutes: with `post`, replies go inline. Objects always go through `say`, so they render the same however quick the handler was. `new App({ inlineReplies: false })` (or `true`) overrides the check.
 
 On Cloudflare `waitUntil` allows 30 s after the answer. Past that, see [Long work](#long-work).
 
