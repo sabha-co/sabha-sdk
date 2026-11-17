@@ -14,8 +14,8 @@ const env: SabhaEnv = {
   SABHA_SIGNING_SECRET: "whsec_test_secret",
 };
 
-function setup(options: AppOptions = {}) {
-  const sabha = new FakeSabha().app(env.SABHA_API_KEY, { id: 99, name: "Helper" });
+function setup(options: AppOptions = {}, permissions?: string[]) {
+  const sabha = new FakeSabha().app(env.SABHA_API_KEY, { id: 99, name: "Helper", ...(permissions ? { permissions } : {}) });
   const logs: { level: string; message: string; fields?: unknown }[] = [];
   const logger: Logger = {
     info: (message, fields) => logs.push({ level: "info", message, fields }),
@@ -125,8 +125,8 @@ describe("handleWebhook: routing", () => {
 });
 
 describe("handleWebhook: answers", () => {
-  it("answers a mention inline with text/plain when the handler returns text in time", async () => {
-    const { app, deliver, sabha } = setup({ inlineReplies: true });
+  it("answers a mention inline with text/plain when the key can post and the handler returns text in time", async () => {
+    const { app, deliver, sabha } = setup();
     app.mention(({ user }) => `Hi ${user.name}`);
     const result = await deliver(messageEvent());
     expect(result).toMatchObject({ status: 200, body: "Hi Asha" });
@@ -155,7 +155,7 @@ describe("handleWebhook: answers", () => {
   });
 
   it("posts an object return through say even with inline replies, so it renders the same however quick", async () => {
-    const { app, deliver, sabha, settle } = setup({ inlineReplies: true });
+    const { app, deliver, sabha, settle } = setup();
     app.mention(() => ({ text: "Deployed <https://ci.test/1|build 1>" }));
     const result = await deliver(messageEvent());
     await settle();
@@ -163,12 +163,11 @@ describe("handleWebhook: answers", () => {
     expect(posts(sabha)[0]!.body).toMatchObject({ text: "Deployed <https://ci.test/1|build 1>" });
   });
 
-  it("accepts a message at once by default, keeping its handler alive past the response", async () => {
-    const { app, deliver, sabha, settle } = setup();
+  it("accepts a message at once when the key can't post, keeping its handler alive past the response", async () => {
+    const { app, deliver, settle } = setup({}, ["read_messages"]);
     let finished = false;
-    app.message(async ({ say }) => {
+    app.message(async () => {
       await new Promise((resolve) => setTimeout(resolve, 30));
-      await say("synced");
       finished = true;
     });
     const result = await deliver(messageEvent());
@@ -176,7 +175,21 @@ describe("handleWebhook: answers", () => {
     expect(finished).toBe(false);
     await settle();
     expect(finished).toBe(true);
-    expect(posts(sabha)).toHaveLength(1);
+  });
+
+  it("reads the key's permissions again after a few minutes, so an admin's change reaches it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const { app, deliver, sabha, settle } = setup();
+    app.mention(() => "On it");
+    expect((await deliver(messageEvent({ message: { id: 41 } }))).body).toBe("On it");
+
+    sabha.app(env.SABHA_API_KEY, { id: 99, name: "Helper", permissions: ["read_messages"] });
+    expect((await deliver(messageEvent({ message: { id: 42 } }))).body).toBe("On it"); // still the profile it read
+
+    vi.setSystemTime(Date.now() + 5 * 60_000 + 1);
+    expect((await deliver(messageEvent({ message: { id: 43 } }))).body).toBe("");
+    await settle();
+    expect(sabha.calls.filter((call) => call.path === "/api/v1/me")).toHaveLength(2);
   });
 
   it("answers a command from its quick handler while a slow sibling is still running", async () => {

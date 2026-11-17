@@ -1,4 +1,5 @@
-// Answers a mention: the kit posts the returned text as the app's reply. Run either way:
+// Answers a mention. Over a webhook Sabha posts the returned text as the app's reply; over
+// the socket the kit posts it. Run either way:
 //   Cloudflare: export default createWorker(app)      Node: runSocket(app, { env })
 import { App } from "@sabha-co/app-kit";
 

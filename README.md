@@ -68,12 +68,12 @@ Sabha waits a limited time for an answer. The kit answers inside it and keeps ev
 | Event | The kit answers Sabha | A returned value |
 |---|---|---|
 | `command` | with the first handler's value, if one returns within 3 s | after that, goes to `response_url` (Sabha waits 15 s from the member's command) |
-| a message or reaction | at once | is posted with `say` |
+| a message or reaction | with the first string a handler returns within 280 s, when the key holds `post`; otherwise at once | Sabha posts that string as the reply; anything else is posted with `say` |
 | anything else | when its handlers finish, within 25 s | is ignored |
 
 Each handler's value is sent as soon as that handler finishes; a slow handler never holds back a quick one.
 
-`new App({ inlineReplies: true })` turns on Sabha's auto-reply shortcut for messages and reactions: a handler that returns a string within 280 s has it posted by Sabha as the reply, with no API call. Use it only when the app holds the `post` permission: without it Sabha waits just 30 s and retries. Objects still go through `say`, so they render the same however quick the handler was.
+For messages and reactions the kit reads the key's permissions from `GET /me`, again every few minutes. With `post`, Sabha waits up to 300 s and posts a string the handler returns as the reply, with no API call. Without it, Sabha waits only 30 s and sends the event again, so the kit answers at once. Objects always go through `say`, so they render the same however quick the handler was. `new App({ inlineReplies: false })` (or `true`) overrides the check.
 
 On Cloudflare `waitUntil` allows 30 s after the answer. Past that, see [Long work](#long-work).
 

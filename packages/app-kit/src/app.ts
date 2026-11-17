@@ -19,10 +19,10 @@ import { stableId } from "./stable-id.js";
 export interface AppOptions {
   logger?: Logger;
   /**
-   * Off by default. When on, a string a message or reaction handler returns within
-   * `replyWindowMs` is answered inline, and Sabha posts it as the app's reply (its auto-reply
-   * shortcut). Only for an app that holds `post`: Sabha waits only 30 s on any other, then
-   * retries the delivery.
+   * Whether a string a message or reaction handler returns within `replyWindowMs` is answered
+   * inline over a webhook, for Sabha to post as the app's reply (its auto-reply shortcut).
+   * By default it is when the key holds `post`, read from `GET /me`: Sabha waits only 30 s
+   * on any other app, then sends the event again. Set it to override that.
    */
   inlineReplies?: boolean;
   /** How long a command's handler may take to answer inline. Sabha allows 15 s from when it ran. */
@@ -65,8 +65,12 @@ async function within<T>(work: Promise<T>, ms: number): Promise<T | "timeout"> {
 
 type Outcome = { ok: true; value: HandlerResult } | { ok: false; error: unknown };
 
-/** How long an event waits for the app's own id before going on without it. */
+/** How long an event waits for the app's profile before going on without it. */
 const SELF_LOOKUP_MS = 5_000;
+/** How long the app's profile is trusted before it's read again. */
+const PROFILE_FOR_MS = 5 * 60_000;
+
+type Profile = { id: number; permissions?: string[] };
 
 /**
  * A Sabha app: one set of handlers, run the same over webhooks or the socket.
@@ -76,18 +80,18 @@ const SELF_LOOKUP_MS = 5_000;
  */
 export class App<Env extends SabhaEnv = SabhaEnv> {
   readonly logger: Logger;
-  readonly options: Required<Omit<AppOptions, "logger" | "fetch">> & { fetch?: FetchLike };
+  readonly options: Required<Omit<AppOptions, "logger" | "fetch" | "inlineReplies">> & { fetch?: FetchLike; inlineReplies?: boolean };
   readonly schedules: Schedule<Env>[] = [];
   private readonly routes: Route<Env>[] = [];
   private readonly seen = new SeenEvents();
   private readonly clients = new Map<string, SabhaClient>();
-  private readonly selves = new Map<string, Promise<number | undefined>>();
+  private readonly profiles = new Map<string, { at: number; profile: Promise<Profile | undefined> }>();
   private gapHandler: ((info: { reason: string }) => void) | undefined;
 
   constructor(options: AppOptions = {}) {
     this.logger = options.logger ?? consoleLogger;
     this.options = {
-      inlineReplies: options.inlineReplies ?? false,
+      ...(options.inlineReplies === undefined ? {} : { inlineReplies: options.inlineReplies }),
       commandWindowMs: options.commandWindowMs ?? 3_000,
       replyWindowMs: options.replyWindowMs ?? 280_000,
       acceptWindowMs: options.acceptWindowMs ?? 25_000,
@@ -195,8 +199,9 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
    *
    * - A command is answered by the first handler to return a value within its window: inline
    *   over a webhook, on the socket otherwise. Anything later goes to its `response_url`.
-   * - A message or reaction is accepted at once and every return value is posted with `say`;
-   *   with `inlineReplies`, the first string returned within the window is Sabha's reply.
+   * - A message or reaction is accepted at once and every return value is posted with `say`,
+   *   unless inline replies are on: then the first string returned within the window is
+   *   answered inline for Sabha to post.
    * - Any other event waits for its handlers within the accept window, so a `RetryLater`
    *   can ask Sabha to send it again.
    */
@@ -230,10 +235,11 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
       return options.inline ? { status: 200, text: "" } : undefined;
     }
 
-    const window = this.windowFor(event, options.inline);
+    const replies = options.inline && REPLY_EVENTS.has(event.event) && (await this.repliesInline(runtime));
+    const window = event.event === "command" ? this.options.commandWindowMs : replies ? this.options.replyWindowMs : undefined;
     let index = -1;
     if (window !== undefined) {
-      const picked = await within(this.firstQuick(runs, event, options.inline), window);
+      const picked = await within(this.firstQuick(runs, event, replies), window);
       if (picked !== "timeout") index = picked;
     }
     const value = index >= 0 ? (runs[index] ? ((await runs[index]) as { value: HandlerResult }).value : undefined) : undefined;
@@ -249,12 +255,12 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
   }
 
   /** The position of the first run to settle with a value that can be the inline answer, or -1. */
-  private firstQuick(runs: Promise<Outcome>[], event: SabhaEvent, inline: boolean): Promise<number> {
+  private firstQuick(runs: Promise<Outcome>[], event: SabhaEvent, replies: boolean): Promise<number> {
     return new Promise((resolve) => {
       let left = runs.length;
       runs.forEach((run, position) =>
         run.then((outcome) => {
-          if (outcome.ok && this.inlineable(event, outcome.value, inline)) resolve(position);
+          if (outcome.ok && this.inlineable(event, outcome.value, replies)) resolve(position);
           else if (--left === 0) resolve(-1);
         }),
       );
@@ -289,10 +295,34 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
 
   // Internals --------------------------------------------------------------------
 
-  /** How long to wait for an inline answer, or undefined for none. */
-  private windowFor(event: SabhaEvent, inline: boolean): number | undefined {
-    if (event.event === "command") return this.options.commandWindowMs;
-    if (inline && REPLY_EVENTS.has(event.event) && this.options.inlineReplies) return this.options.replyWindowMs;
+  /** Whether Sabha will post an inline reply for this app: it will when the key holds `post`. */
+  private async repliesInline(runtime: Runtime<Env>): Promise<boolean> {
+    if (this.options.inlineReplies !== undefined) return this.options.inlineReplies;
+    return (await this.profileOf(runtime))?.permissions?.includes("post") ?? false;
+  }
+
+  /**
+   * The app's id and permissions from `GET /me`, read once a few minutes per key, so an
+   * admin's change of permissions reaches a long-lived host. Undefined while it can't be read.
+   */
+  private async profileOf(runtime: Runtime<Env>): Promise<Profile | undefined> {
+    const cacheKey = runtime.env.SABHA_BASE_URL + runtime.env.SABHA_API_KEY;
+    let entry = this.profiles.get(cacheKey);
+    if (!entry || Date.now() - entry.at > PROFILE_FOR_MS) {
+      const profile = runtime.client.me().then(
+        (me) => ({ id: me.id, permissions: me.permissions }),
+        (error) => {
+          runtime.logger.warn("couldn't read the app's profile", { error: describeError(error, secretsOf(runtime.env)) });
+          if (this.profiles.get(cacheKey)?.profile === profile) this.profiles.delete(cacheKey);
+          return undefined;
+        },
+      );
+      entry = { at: Date.now(), profile };
+      this.profiles.set(cacheKey, entry);
+    }
+    const profile = await within(entry.profile, SELF_LOOKUP_MS);
+    if (profile !== "timeout") return profile;
+    if (this.profiles.get(cacheKey) === entry) this.profiles.delete(cacheKey);
     return undefined;
   }
 
@@ -302,23 +332,9 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
    */
   private async isOwnEcho(event: SabhaEvent, runtime: Runtime<Env>): Promise<boolean> {
     if (event.event === "command" || event.event === "block_actions" || event.event === "user_created" || event.event === "user_deleted") return false;
-    const cacheKey = runtime.env.SABHA_BASE_URL + runtime.env.SABHA_API_KEY;
-    let self = this.selves.get(cacheKey);
-    if (!self) {
-      self = runtime.client.me().then(
-        (me) => me.id,
-        (error) => {
-          runtime.logger.warn("couldn't read the app's own id", { error: describeError(error, secretsOf(runtime.env)) });
-          this.selves.delete(cacheKey);
-          return undefined;
-        },
-      );
-      this.selves.set(cacheKey, self);
-    }
-    const id = await within(self, SELF_LOOKUP_MS);
-    if (id === "timeout") this.selves.delete(cacheKey);
-    if (typeof id !== "number") return (event.user as { role?: string }).role === "bot";
-    return id === event.user.id;
+    const profile = await this.profileOf(runtime);
+    if (!profile) return (event.user as { role?: string }).role === "bot";
+    return profile.id === event.user.id;
   }
 
   private async run(route: Route<Env>, index: number, event: SabhaEvent, key: string | undefined, runtime: Runtime<Env>): Promise<Outcome> {
@@ -334,11 +350,11 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
   }
 
   /** Whether a return value can be the inline answer to this event. */
-  private inlineable(event: SabhaEvent, value: HandlerResult, inline: boolean): boolean {
+  private inlineable(event: SabhaEvent, value: HandlerResult, replies: boolean): boolean {
     if (value === undefined || value === null) return false;
     if (event.event === "command") return true;
     // Inline text is the message body as Sabha stores it; anything richer goes through `say`.
-    return inline && REPLY_EVENTS.has(event.event) && this.options.inlineReplies && typeof value === "string";
+    return replies && typeof value === "string";
   }
 
   private toAnswer(event: SabhaEvent, value: HandlerResult): Answer | undefined {

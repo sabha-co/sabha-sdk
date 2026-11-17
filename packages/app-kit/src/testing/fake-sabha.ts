@@ -34,15 +34,18 @@ export class FakeSabha {
   readonly scripted: { method: string; path: RegExp; response: () => Response }[] = [];
   private nextId = 1000;
   private clock: number;
-  private readonly apps = new Map<string, { id: number; name: string }>();
+  private readonly apps = new Map<string, { id: number; name: string; permissions: string[] }>();
 
   constructor(options: { now?: number } = {}) {
     this.clock = options.now ?? Date.parse("2026-11-16T09:00:00Z");
   }
 
-  /** Registers an app key, so posts made with it are by that app. */
-  app(key: string, profile: { id: number; name: string }): this {
-    this.apps.set(key, profile);
+  /**
+   * Registers an app key, so posts made with it are by that app. Its permissions default to a
+   * new app's in Sabha: `post`, `read_messages` and `read_directory`.
+   */
+  app(key: string, profile: { id: number; name: string; permissions?: string[] }): this {
+    this.apps.set(key, { permissions: ["post", "read_messages", "read_directory"], ...profile });
     return this;
   }
 

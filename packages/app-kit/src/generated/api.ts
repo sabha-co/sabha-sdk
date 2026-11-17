@@ -81,7 +81,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Who the app is, and in which workspace (Slack's auth.test). */
+        /** Who the app is, in which workspace, and what its key may do (Slack's auth.test). */
         get: operations["profiles_show"];
         put?: never;
         post?: never;
@@ -1457,6 +1457,8 @@ export interface operations {
                     "application/json": {
                         id: number;
                         name: string;
+                        /** @description What an admin allows the key, in the order Settings shows them, from post, read_messages, read_directory, dm and manage_rooms. New permissions may be added. */
+                        permissions: string[];
                         workspace: {
                             name: string;
                             url: string;

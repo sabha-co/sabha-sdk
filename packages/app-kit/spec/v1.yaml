@@ -61,7 +61,7 @@ paths:
       x-sabha-action: profiles#show
       x-sabha-permission: none
       x-sabha-idempotency: natural
-      summary: Who the app is, and in which workspace (Slack's auth.test).
+      summary: Who the app is, in which workspace, and what its key may do (Slack's auth.test).
       responses:
         "200":
           description: The app.
@@ -69,10 +69,14 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [ id, name, workspace ]
+                required: [ id, name, permissions, workspace ]
                 properties:
                   id: { type: integer }
                   name: { type: string }
+                  permissions:
+                    type: array
+                    description: What an admin allows the key, in the order Settings shows them, from post, read_messages, read_directory, dm and manage_rooms. New permissions may be added.
+                    items: { type: string }
                   workspace:
                     type: object
                     required: [ name, url ]
