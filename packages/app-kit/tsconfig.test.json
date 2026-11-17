@@ -4,8 +4,17 @@
     "noEmit": true,
     "rootDir": ".",
     "allowImportingTsExtensions": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
-  "exclude": ["src/cloudflare/**"]
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "scripts/**/*.ts"
+  ],
+  "exclude": [
+    "src/cloudflare/**",
+    "test/cloudflare/**"
+  ]
 }
