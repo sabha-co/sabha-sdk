@@ -4,11 +4,12 @@ import { CableRejectedError, type Connect, type WebSocketLike } from "../cable/s
  * Opens Sabha's socket from a Worker or Durable Object. `new WebSocket()` can't send headers,
  * and Sabha takes the key only as a header, so this uses the fetch Upgrade form, which does.
  */
-export const connectWorkers: Connect = async (url, { headers, protocol }) => {
+export const connectWorkers: Connect = async (url, { headers, protocol, signal }) => {
   const response = await fetch(url.replace(/^ws/, "http"), {
     headers: { ...headers, Upgrade: "websocket", "Sec-WebSocket-Protocol": protocol },
     // A redirect would carry the key elsewhere; Sabha's socket never redirects.
     redirect: "manual",
+    ...(signal ? { signal } : {}),
   });
   const socket = response.webSocket;
   if (!socket) {

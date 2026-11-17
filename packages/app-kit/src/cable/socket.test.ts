@@ -60,6 +60,7 @@ function harness() {
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+const quiet = { info() {}, warn() {}, error() {} };
 const env: SabhaEnv = { SABHA_BASE_URL: "https://sabha.test", SABHA_API_KEY: "sabha_app_socket_key" };
 
 afterEach(() => vi.useRealTimers());
@@ -70,7 +71,7 @@ describe("CableClient", () => {
     const cable = new CableClient({ url: "wss://sabha.test/cable", apiKey: "sabha_app_key", connect, onEvent() {} });
     void cable.start();
     await tick();
-    expect(handshakes[0]).toEqual({ url: "wss://sabha.test/cable", headers: { Authorization: "Bearer sabha_app_key" }, protocol: CABLE_PROTOCOL });
+    expect(handshakes[0]).toMatchObject({ url: "wss://sabha.test/cable", headers: { Authorization: "Bearer sabha_app_key" }, protocol: CABLE_PROTOCOL });
     sockets[0]!.frame({ type: "welcome" });
     expect(sockets[0]!.commands("subscribe")).toEqual([{ command: "subscribe", identifier: APP_EVENTS_IDENTIFIER }]);
     cable.stop();
@@ -124,34 +125,137 @@ describe("CableClient", () => {
     void cable.start();
     await vi.advanceTimersByTimeAsync(0);
     sockets[0]!.welcomeAndConfirm();
-    await vi.advanceTimersByTimeAsync(10_001);
+    await vi.advanceTimersByTimeAsync(10_000);
     expect(sockets[0]!.closed).toBe(true);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(sockets).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(sockets).toHaveLength(2);
     cable.stop();
   });
 
   it("backs off with jitter, never past the cap", () => {
-    expect(backoffDelay(0, 60_000, () => 0.999)).toBeLessThan(1_000);
-    expect(backoffDelay(3, 60_000, () => 0.5)).toBe(4_000);
-    for (let attempt = 0; attempt < 30; attempt++) expect(backoffDelay(attempt, 60_000, () => 0.999)).toBeLessThan(60_000);
+    expect(backoffDelay(0, 60_000, () => 0)).toBe(1_000);
+    expect(backoffDelay(0, 60_000, () => 0.999)).toBeLessThan(2_000);
+    expect(backoffDelay(3, 60_000, () => 0.5)).toBe(5_000);
+    for (let attempt = 0; attempt < 30; attempt++) expect(backoffDelay(attempt, 60_000, () => 0.999)).toBeLessThanOrEqual(60_000);
   });
 
   it("asks for history from saved positions, falls back to time, then reports a gap", async () => {
     const { sockets, connect } = harness();
     const store = new MemoryReplayStore();
     store.positions["app_events:99"] = { epoch: "e1", offset: 7 };
-    store.connectedAt = 1_700_000_000;
+    store.aliveAt = Math.floor(Date.now() / 1000) - 60;
     const onGap = vi.fn();
     const cable = new CableClient({ url: "wss://x", apiKey: "k", connect, store, onEvent() {}, onGap });
     void cable.start();
     await tick();
     sockets[0]!.welcomeAndConfirm();
-    expect(sockets[0]!.commands("history")[0]).toMatchObject({ history: { streams: { "app_events:99": { epoch: "e1", offset: 7 } }, since: 1_700_000_000 } });
+    expect(sockets[0]!.commands("history")[0]).toMatchObject({ history: { streams: { "app_events:99": { epoch: "e1", offset: 7 } }, since: store.aliveAt } });
     sockets[0]!.frame({ type: "reject_history", identifier: APP_EVENTS_IDENTIFIER });
-    expect(sockets[0]!.commands("history")[1]).toMatchObject({ history: { since: 1_700_000_000 } });
+    expect(sockets[0]!.commands("history")[1]).toMatchObject({ history: { since: store.aliveAt } });
     expect(sockets[0]!.commands("history")[1]!.history).not.toHaveProperty("streams");
     sockets[0]!.frame({ type: "reject_history", identifier: APP_EVENTS_IDENTIFIER });
+    expect(onGap).toHaveBeenCalledOnce();
+    cable.stop();
+  });
+
+  it("closes a socket that opens after stop, and never subscribes on it", async () => {
+    let open: (socket: FakeSocket) => void = () => {};
+    const late = new FakeSocket();
+    const connect: Connect = () => new Promise((resolve) => (open = resolve));
+    const cable = new CableClient({ url: "wss://x", apiKey: "k", connect, onEvent() {} });
+    const done = cable.start();
+    await tick();
+    cable.stop();
+    open(late);
+    await done;
+    expect(late.closed).toBe(true);
+    late.frame({ type: "welcome" });
+    expect(late.commands("subscribe")).toEqual([]);
+  });
+
+  it("gives up on a handshake that never answers, and tries again", async () => {
+    vi.useFakeTimers();
+    let attempts = 0;
+    let seen: AbortSignal | undefined;
+    const connect: Connect = (_url, { signal }) => ((attempts++, (seen = signal)), new Promise(() => {}));
+    const cable = new CableClient({ url: "wss://x", apiKey: "k", connect, onEvent() {}, random: () => 0, logger: quiet });
+    void cable.start();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(seen?.aborted).toBe(true);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(attempts).toBe(2);
+    cable.stop();
+  });
+
+  it("opens nothing while the store can't be read, and recovers once it can", async () => {
+    vi.useFakeTimers();
+    const { sockets, connect } = harness();
+    const store = new MemoryReplayStore();
+    let broken = true;
+    const load = store.load.bind(store);
+    store.load = async () => {
+      if (broken) throw new Error("storage unavailable");
+      return load();
+    };
+    const cable = new CableClient({ url: "wss://x", apiKey: "k", connect, store, onEvent() {}, random: () => 0, logger: quiet });
+    void cable.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sockets).toHaveLength(0);
+    broken = false;
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(sockets).toHaveLength(1);
+    cable.stop();
+  });
+
+  it("survives an app callback that throws", async () => {
+    const { sockets, connect } = harness();
+    const seen: string[] = [];
+    const cable = new CableClient({
+      url: "wss://x",
+      apiKey: "k",
+      connect,
+      onEvent: (event) => void seen.push(event.event),
+      onStatus: () => {
+        throw new Error("boom");
+      },
+      logger: quiet,
+    });
+    void cable.start();
+    await tick();
+    sockets[0]!.welcomeAndConfirm();
+    sockets[0]!.event(messageEvent(), 1);
+    await tick();
+    expect(seen).toEqual(["message_created"]);
+    cable.stop();
+  });
+
+  it("reports a gap when the app was away longer than Sabha keeps events", async () => {
+    const { sockets, connect } = harness();
+    const store = new MemoryReplayStore();
+    store.aliveAt = Math.floor(Date.now() / 1000) - 600;
+    const onGap = vi.fn();
+    const cable = new CableClient({ url: "wss://x", apiKey: "k", connect, store, onEvent() {}, onGap, logger: quiet });
+    void cable.start();
+    await tick();
+    sockets[0]!.welcomeAndConfirm();
+    expect(onGap).toHaveBeenCalledOnce();
+    cable.stop();
+  });
+
+  it("reports a gap when a replay by time skips past where the app left off", async () => {
+    const { sockets, connect } = harness();
+    const store = new MemoryReplayStore();
+    store.positions["app_events:99"] = { epoch: "e1", offset: 7 };
+    store.aliveAt = Math.floor(Date.now() / 1000) - 60;
+    const onGap = vi.fn();
+    const cable = new CableClient({ url: "wss://x", apiKey: "k", connect, store, onEvent() {}, onGap, logger: quiet });
+    void cable.start();
+    await tick();
+    sockets[0]!.welcomeAndConfirm();
+    sockets[0]!.frame({ type: "reject_history", identifier: APP_EVENTS_IDENTIFIER });
+    sockets[0]!.event(messageEvent({ message: { id: 900 } }), 30);
     expect(onGap).toHaveBeenCalledOnce();
     cable.stop();
   });
@@ -166,11 +270,11 @@ describe("CableClient", () => {
 });
 
 describe("socketApp", () => {
-  function setup(commandWindowMs = 3_000) {
+  function setup(commandWindowMs = 3_000, store?: MemoryReplayStore) {
     const sabha = new FakeSabha().app(env.SABHA_API_KEY, { id: 99, name: "Helper" });
     const app = new App({ fetch: sabha.fetch, commandWindowMs, logger: { info() {}, warn() {}, error() {} } });
     const { sockets, connect } = harness();
-    const cable = socketApp({ app, env, connect });
+    const cable = socketApp({ app, env, connect, ...(store ? { store } : {}) });
     return { app, sabha, sockets, cable };
   }
 
@@ -205,6 +309,38 @@ describe("socketApp", () => {
     cable.stop();
   });
 
+  it("answers a replayed command through response_url, since its moment on the socket has passed", async () => {
+    const store = new MemoryReplayStore();
+    store.aliveAt = Math.floor(Date.now() / 1000) - 60;
+    const { app, sabha, sockets, cable } = setup(3_000, store);
+    app.command("/ticket", () => ({ text: "Filed" }));
+    void cable.start();
+    await tick();
+    sockets[0]!.welcomeAndConfirm();
+    sockets[0]!.event(commandEvent({ id: "cmd-replayed" }), 1); // before confirm_history: a replay
+    await vi.waitFor(() => expect(sabha.calls.filter((call) => call.path === "/api/v1/interaction_responses")).toHaveLength(1));
+    expect(sockets[0]!.commands("message")).toHaveLength(0);
+
+    sockets[0]!.frame({ type: "confirm_history", identifier: APP_EVENTS_IDENTIFIER });
+    sockets[0]!.event(commandEvent({ id: "cmd-live" }), 2);
+    await vi.waitFor(() => expect(sockets[0]!.commands("message")).toHaveLength(1));
+    cable.stop();
+  });
+
+  it("falls back to response_url when Sabha refuses a socket answer", async () => {
+    const { app, sabha, sockets, cable } = setup();
+    app.command("/ticket", () => ({ text: "Filed" }));
+    void cable.start();
+    await tick();
+    sockets[0]!.welcomeAndConfirm();
+    sockets[0]!.event(commandEvent({ id: "cmd-refused" }), 1);
+    await vi.waitFor(() => expect(sockets[0]!.commands("message")).toHaveLength(1));
+    sockets[0]!.event({ event: "answer_refused", id: "cmd-refused", error: "late" }, 2);
+    await vi.waitFor(() => expect(sabha.calls.filter((call) => call.path === "/api/v1/interaction_responses")).toHaveLength(1));
+    expect(sabha.calls.find((call) => call.path === "/api/v1/interaction_responses")!.body).toEqual({ text: "Filed" });
+    cable.stop();
+  });
+
   it("delivers every event exactly once across a drop, reconnect and replay", async () => {
     vi.useFakeTimers();
     const sabha = new FakeSabha().app(env.SABHA_API_KEY, { id: 99, name: "Helper" });
@@ -220,7 +356,7 @@ describe("socketApp", () => {
     sockets[0]!.event(messageEvent({ message: { id: 2 } }), 2);
     await vi.advanceTimersByTimeAsync(0);
     sockets[0]!.close();
-    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(1_000);
     sockets[1]!.welcomeAndConfirm();
     expect(sockets[1]!.commands("history")[0]).toMatchObject({ history: { streams: { "app_events:99": { epoch: "e1", offset: 2 } } } });
     // Sabha replays from the position, overlapping one event.

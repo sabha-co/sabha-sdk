@@ -17,9 +17,10 @@ export { DurableReplayStore } from "./replay-store.js";
 /** The Durable Object binding the template declares for the socket host. */
 export const SOCKET_BINDING = "SABHA_SOCKET";
 const WATCHDOG_MS = 30_000;
+const STUCK_MS = 120_000;
 
 export interface SocketHostStub {
-  ensureConnected(): Promise<{ transport: string; connected: boolean }>;
+  ensureConnected(): Promise<{ transport: string; connected: boolean; refused?: boolean }>;
 }
 
 export interface CloudflareEnv extends SabhaEnv {
@@ -118,14 +119,14 @@ export function createSocketHost<Env extends CloudflareEnv>(app: App<Env>, optio
       });
     }
 
-    async ensureConnected(): Promise<{ transport: string; connected: boolean }> {
+    async ensureConnected(): Promise<{ transport: string; connected: boolean; refused?: boolean }> {
       if (!isSocketMode(this.env)) {
         await this.shutdown();
         return { transport: "webhook", connected: false };
       }
-      this.start();
+      const refused = !(await this.start());
       if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + WATCHDOG_MS);
-      return { transport: "socket", connected: this.connected };
+      return { transport: "socket", connected: this.connected, ...(refused ? { refused } : {}) };
     }
 
     override async alarm(): Promise<void> {
@@ -133,13 +134,22 @@ export function createSocketHost<Env extends CloudflareEnv>(app: App<Env>, optio
         await this.shutdown();
         return;
       }
-      this.start();
+      // A client that exists but has heard nothing for minutes is stuck; replace it.
+      if (this.cable && !this.cable.connected && Date.now() - this.cable.lastFrameAt > STUCK_MS) {
+        app.logger.warn("the socket was stuck; starting it again");
+        this.replace();
+      }
+      await this.start();
       await this.ctx.storage.setAlarm(Date.now() + WATCHDOG_MS);
     }
 
-    private start(): void {
-      if (this.cable) return;
-      this.cable = socketApp({
+    /** Starts the socket unless it's running; false when Sabha refused this same key before. */
+    private async start(): Promise<boolean> {
+      if (this.cable) return true;
+      const fingerprint = await fingerprintOf(this.env.SABHA_API_KEY);
+      if (this.store.refusedKey() === fingerprint) return false;
+      this.store.setRefusedKey(undefined);
+      const cable = socketApp({
         app,
         env: this.env,
         connect: options.connect ?? connectWorkers,
@@ -147,18 +157,33 @@ export function createSocketHost<Env extends CloudflareEnv>(app: App<Env>, optio
         waitUntil: (promise) => this.ctx.waitUntil(promise),
         cable: { onStatus: (connected) => (this.connected = connected) },
       });
-      const cable = this.cable;
-      void cable.start().finally(() => {
-        // The loop ends only when stopped or refused for good; the next alarm decides again.
-        if (this.cable === cable) this.cable = undefined;
+      this.cable = cable;
+      void cable.start().then(() => {
+        // Still current, so it ended on its own: Sabha refused the key. Wait for a new one
+        // rather than knock every 30 s.
+        if (this.cable !== cable) return;
+        this.cable = undefined;
+        this.connected = false;
+        this.store.setRefusedKey(fingerprint);
       });
+      return true;
+    }
+
+    private replace(): void {
+      const cable = this.cable;
+      this.cable = undefined;
+      this.connected = false;
+      cable?.stop();
     }
 
     private async shutdown(): Promise<void> {
-      this.cable?.stop();
-      this.cable = undefined;
-      this.connected = false;
+      this.replace();
       await this.ctx.storage.deleteAlarm();
     }
   };
+}
+
+async function fingerprintOf(key: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }

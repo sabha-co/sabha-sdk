@@ -37,4 +37,21 @@ describe("runSocket", () => {
     await vi.advanceTimersByTimeAsync(120_000);
     expect(runs).toHaveLength(2);
   });
+
+  it("waits on close for a schedule still running", async () => {
+    vi.useFakeTimers({ now: Date.parse("2026-11-16T08:59:59Z") });
+    const env = { SABHA_BASE_URL: "https://sabha.test", SABHA_API_KEY: "sabha_app_node_key" };
+    const app = new App({ fetch: new FakeSabha().app(env.SABHA_API_KEY, { id: 1, name: "Bot" }).fetch, logger: { info() {}, warn() {}, error() {} } });
+    let finished = false;
+    app.schedule("slow", { at: "09:00", timezone: "UTC", days: "daily" }, async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+      finished = true;
+    });
+    const running = runSocket(app, { env, connect: () => new Promise(() => {}) });
+    await vi.advanceTimersByTimeAsync(1_000);
+    const closed = running.close();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await closed;
+    expect(finished).toBe(true);
+  });
 });

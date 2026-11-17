@@ -111,4 +111,22 @@ describe("the Worker in socket mode", () => {
     });
     expect(socket.closed).toBe(true);
   });
+
+  it("stops knocking once Sabha refuses the key, until the key changes", async () => {
+    await runInDurableObject(stub(), async (object: unknown) => {
+      (object as { env: Cloudflare.Env }).env.TRANSPORT = "socket";
+    });
+    await call(new Request("https://app.test/connect"));
+    const socket = sockets.at(-1)!;
+    await inObject(() => {
+      socket.frame({ type: "welcome" });
+      socket.frame({ type: "disconnect", reason: "unauthorized", reconnect: false });
+    });
+    await settle();
+    const count = sockets.length;
+    await runDurableObjectAlarm(stub());
+    await settle();
+    expect(sockets.length).toBe(count);
+    expect(await (await call(new Request("https://app.test/connect"))).json()).toMatchObject({ refused: true });
+  });
 });
