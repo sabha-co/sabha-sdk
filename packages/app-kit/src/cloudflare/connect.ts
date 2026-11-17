@@ -7,6 +7,8 @@ import { CableRejectedError, type Connect, type WebSocketLike } from "../cable/s
 export const connectWorkers: Connect = async (url, { headers, protocol }) => {
   const response = await fetch(url.replace(/^ws/, "http"), {
     headers: { ...headers, Upgrade: "websocket", "Sec-WebSocket-Protocol": protocol },
+    // A redirect would carry the key elsewhere; Sabha's socket never redirects.
+    redirect: "manual",
   });
   const socket = response.webSocket;
   if (!socket) {

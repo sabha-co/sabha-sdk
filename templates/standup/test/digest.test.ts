@@ -10,6 +10,7 @@ describe("inert", () => {
     expect(text).not.toMatch(/@[\w-]/);
     expect(text).not.toContain("<b>");
     expect(text).toContain("&lt;b&gt;bold&lt;/b&gt; &amp; co");
+    for (const glued of ["wwww.evil.test", "xwww.evil.test", "_www.evil.test", "1WWW.evil.test"]) expect(inert(glued)).not.toMatch(/www\./i);
     expect(text.replace(/​/g, "")).toBe("ping @{7} and @everyone: https://evil.test, www.evil.test, me@evil.test &lt;b&gt;bold&lt;/b&gt; &amp; co");
   });
 

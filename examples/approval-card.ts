@@ -4,20 +4,20 @@ import { App, type SabhaEnv } from "@sabha-co/app-kit";
 
 export const app = new App<SabhaEnv & { APPROVERS: string }>();
 
-app.command("/deploy", ({ command }) => ({
-  response_type: "in_channel",
-  text: `Deploy ${command.text}?`,
-  blocks: [
-    { type: "section", text: { type: "mrkdwn", text: `Deploy *${command.text}*?` } },
-    {
-      type: "actions",
-      elements: [
-        { type: "button", action_id: "approve", style: "primary", value: command.text, text: { type: "plain_text", text: "Approve" } },
-        { type: "button", action_id: "reject", style: "danger", value: command.text, text: { type: "plain_text", text: "Reject" } },
-      ],
-    },
-  ],
-}));
+app.command("/deploy", ({ command }) => {
+  // Only plain names: mrkdwn such as <branch|main> would show approvers one target and deploy another.
+  const target = command.text.trim();
+  if (!/^[\w./-]{1,100}$/.test(target)) return { response_type: "ephemeral", text: "Name a branch or tag: /deploy main" };
+  const button = (action_id: string, label: string, style: string) => ({ type: "button", action_id, style, value: target, text: { type: "plain_text", text: label } });
+  return {
+    response_type: "in_channel",
+    text: `Deploy ${target}?`,
+    blocks: [
+      { type: "section", text: { type: "mrkdwn", text: `Deploy *${target}*?` } },
+      { type: "actions", elements: [button("approve", "Approve", "primary"), button("reject", "Reject", "danger")] },
+    ],
+  };
+});
 
 app.action(/^(approve|reject)$/, async ({ action, user, env, respond }) => {
   const approvers = env.APPROVERS.split(",").map((id) => id.trim());

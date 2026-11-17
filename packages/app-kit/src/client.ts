@@ -355,7 +355,8 @@ export class SabhaClient {
     const auth = options.auth ?? true;
     let url = this.urlFor(path, options.query);
     const label = options.label ?? `${new URL(url).pathname}`;
-    let sendKey = auth;
+    // The key goes only to Sabha's own origin, even when a caller names a full URL.
+    let sendKey = auth && new URL(url).origin === new URL(this.baseUrl).origin;
 
     for (let attempt = 1; ; attempt++) {
       const init: RequestInit = { method, redirect: "manual", headers: { Accept: "application/json", ...options.headers } };

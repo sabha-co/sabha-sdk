@@ -249,7 +249,7 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
             env: runtime.env,
             client: runtime.client,
             logger: runtime.logger,
-            stableId: (key) => stableId(runtime.env.SABHA_API_KEY, key),
+            stableId: (key) => stableId(runtime.env.SABHA_API_KEY, `app:${key}`),
           });
           return { name: schedule.name, ran: true };
         } catch (error) {
@@ -410,7 +410,8 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
       client,
       logger: runtime.logger,
       transport: runtime.transport,
-      stableId: (stableKey: string) => stableId(env.SABHA_API_KEY, stableKey),
+      // Prefixed, so an app's own keys can never match the kit's ids for say and drafts.
+      stableId: (stableKey: string) => stableId(env.SABHA_API_KEY, `app:${stableKey}`),
       say,
       status,
       draft,

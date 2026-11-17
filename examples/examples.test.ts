@@ -68,6 +68,12 @@ describe("approval-card", () => {
     expect(answer.blocks[1]!.elements!.map((element) => element.action_id)).toEqual(["approve", "reject"]);
   });
 
+  it("refuses a target written as mrkdwn, which could show approvers a different one", async () => {
+    fakeSabha();
+    const response = await deliver(approvalCard, commandEvent({ id: "cmd-deploy-sneaky", command: "/deploy", text: "<feature/drop-db|main>" }), { APPROVERS: "7" });
+    expect(await response.json()).toMatchObject({ response_type: "ephemeral", text: "Name a branch or tag: /deploy main" });
+  });
+
   it("lets a listed approver decide, replacing the card once", async () => {
     const sabha = fakeSabha();
     await deliver(approvalCard, blockActionsEvent({ id: "act-approver" }), { APPROVERS: "3, 7" });

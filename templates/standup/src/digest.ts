@@ -53,7 +53,7 @@ export function inert(text: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .replace(/:(?=\/\/)/g, `${ZERO_WIDTH_SPACE}:`)
-    .replace(/\b(www)\./gi, `$1${ZERO_WIDTH_SPACE}.`)
+    .replace(/(www)\./gi, `$1${ZERO_WIDTH_SPACE}.`)
     .replace(/@/g, `@${ZERO_WIDTH_SPACE}`);
   return escapeHtml(broken);
 }

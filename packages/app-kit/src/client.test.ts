@@ -88,6 +88,14 @@ describe("SabhaClient", () => {
     expect(header(other.calls[1]!.init, "Authorization")).toBeUndefined();
   });
 
+  it("never sends the key to a full URL on another origin", async () => {
+    const { client, calls } = recorder([Response.json({ ok: true }), Response.json({ ok: true })]);
+    await client.call("POST", "https://elsewhere.test/hook");
+    await client.call("GET", "https://sabha.test/api/v1/me");
+    expect(header(calls[0]!.init, "Authorization")).toBeUndefined();
+    expect(header(calls[1]!.init, "Authorization")).toBe(`Bearer ${key}`);
+  });
+
   it("answers a response_url without the key, and never names the URL in errors", async () => {
     const url = "https://sabha.test/api/v1/interaction_responses?token=very-secret-token";
     const { client, calls } = recorder([Response.json({ code: "not_found" }, { status: 404 })]);
