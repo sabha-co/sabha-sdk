@@ -1,0 +1,1346 @@
+openapi: 3.1.0
+info:
+  title: Sabha apps API
+  version: "1"
+  description: >-
+    What an app can do with its key, and the events it receives. APPS.md (served at /skill)
+    explains each part; this file is the exact shapes. Every operation says which of the key's
+    permissions it needs (x-sabha-permission) and whether repeating it is safe
+    (x-sabha-idempotency: client_message_id, idempotency_key, natural or none). Responses only
+    gain fields, so a client should ignore ones it doesn't know.
+servers:
+  - url: /
+    description: Replaced with this install's own base URL when served.
+
+security:
+  - appKey: []
+
+# Answers any operation can give, merged into each one's responses.
+x-sabha-shared-responses:
+  everywhere: &everywhere
+    "301": { $ref: "#/components/responses/Moved" }
+    "308": { $ref: "#/components/responses/Moved" }
+    "503": { $ref: "#/components/responses/Offline" }
+  keyed: &keyed
+    <<: *everywhere
+    "401": { $ref: "#/components/responses/Unauthorized" }
+    "403": { $ref: "#/components/responses/Forbidden" }
+
+paths:
+  /api/v1/openapi.json:
+    get:
+      operationId: specs_show
+      x-sabha-action: specs#show
+      x-sabha-permission: none
+      x-sabha-idempotency: natural
+      summary: This document, with servers set to this install's own address. No key needed.
+      security: []
+      responses:
+        <<: *everywhere
+        "200":
+          description: The spec.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ openapi, info, servers, paths ]
+                properties:
+                  openapi: { type: string }
+                  servers:
+                    type: array
+                    items:
+                      type: object
+                      required: [ url ]
+                      properties:
+                        url: { type: string }
+        "404": { description: There's no workspace at this address. }
+
+  /api/v1/me:
+    get:
+      operationId: profiles_show
+      x-sabha-action: profiles#show
+      x-sabha-permission: none
+      x-sabha-idempotency: natural
+      summary: Who the app is, and in which workspace (Slack's auth.test).
+      responses:
+        "200":
+          description: The app.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ id, name, workspace ]
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  workspace:
+                    type: object
+                    required: [ name, url ]
+                    properties:
+                      name: { type: string }
+                      url: { type: string }
+        <<: *keyed
+
+  /api/v1/profile:
+    patch: &profiles_update
+      operationId: profiles_update_patch
+      x-sabha-action: profiles#update
+      x-sabha-permission: none
+      x-sabha-idempotency: natural
+      summary: Change the app's name or where its events go.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                webhook_url: { type: [ string, "null" ] }
+                mentions_url: { type: [ string, "null" ] }
+                everything_url: { type: [ string, "null" ] }
+      responses:
+        "200":
+          description: The app's name and webhook.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ name, webhook_url ]
+                properties:
+                  name: { type: string }
+                  webhook_url: { type: [ string, "null" ] }
+        <<: *keyed
+        "422": { $ref: "#/components/responses/Invalid" }
+    put:
+      <<: *profiles_update
+      operationId: profiles_update_put
+
+  /api/v1/profile/icon:
+    put: &icons_update
+      operationId: profiles_icons_update_put
+      x-sabha-action: profiles/icons#update
+      x-sabha-permission: none
+      x-sabha-idempotency: natural
+      summary: Set the image the app wears. An admin's upload in Settings → Apps is shown over it.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [ image ]
+              properties:
+                image: { type: string, description: "A JPEG, PNG, GIF or WebP file, up to 5 MB." }
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ shown ]
+                properties:
+                  shown: { type: boolean, description: "False while an admin's upload is shown instead." }
+        <<: *keyed
+        "422": { $ref: "#/components/responses/Invalid" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    patch:
+      <<: *icons_update
+      operationId: profiles_icons_update_patch
+    delete:
+      operationId: profiles_icons_destroy
+      x-sabha-action: profiles/icons#destroy
+      x-sabha-permission: none
+      x-sabha-idempotency: natural
+      summary: Remove the app's image, back to its generated one.
+      responses:
+        "204": { description: "Removed, or there was none." }
+        <<: *keyed
+
+  /api/v1/profile/commands:
+    get:
+      operationId: profiles_commands_show
+      x-sabha-action: profiles/commands#show
+      x-sabha-permission: none
+      x-sabha-idempotency: natural
+      summary: The app's slash commands.
+      responses:
+        "200": { $ref: "#/components/responses/Commands" }
+        <<: *keyed
+    patch: &commands_update
+      operationId: profiles_commands_update_patch
+      x-sabha-action: profiles/commands#update
+      x-sabha-permission: none
+      x-sabha-idempotency: natural
+      summary: Replace the app's whole list of slash commands.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ commands ]
+              properties:
+                commands:
+                  type: array
+                  items:
+                    type: object
+                    required: [ name ]
+                    properties:
+                      name: { type: string }
+                      description: { type: string }
+                      usage_hint: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/Commands" }
+        "400": { $ref: "#/components/responses/Invalid" }
+        <<: *keyed
+        "422": { $ref: "#/components/responses/Invalid" }
+    put:
+      <<: *commands_update
+      operationId: profiles_commands_update_put
+
+  /api/v1/rooms:
+    get:
+      operationId: rooms_index
+      x-sabha-action: rooms#index
+      x-sabha-permission: read_directory
+      x-sabha-idempotency: natural
+      summary: The rooms the app is in, or with joinable, the open rooms it could join.
+      parameters:
+        - { name: joinable, in: query, schema: { type: boolean } }
+        - { name: query, in: query, schema: { type: string }, description: Rooms whose names match. }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: The rooms.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Room" } }
+        <<: *keyed
+    post:
+      operationId: rooms_create
+      x-sabha-action: rooms#create
+      x-sabha-permission: manage_rooms
+      x-sabha-idempotency: none
+      summary: Make a room, with the app as its creator and first member.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ name, type ]
+              properties:
+                name: { type: string }
+                type: { enum: [ open, closed ] }
+      responses:
+        "201": { $ref: "#/components/responses/Room" }
+        <<: *keyed
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /api/v1/rooms/{id}:
+    parameters: [ { $ref: "#/components/parameters/Id" } ]
+    get:
+      operationId: rooms_show
+      x-sabha-action: rooms#show
+      x-sabha-permission: read_directory
+      x-sabha-idempotency: natural
+      summary: One room the app can reach.
+      responses:
+        "200": { $ref: "#/components/responses/Room" }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch: &rooms_update
+      operationId: rooms_update_patch
+      x-sabha-action: rooms#update
+      x-sabha-permission: manage_rooms
+      x-sabha-idempotency: natural
+      summary: Rename a room the app made.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/Room" }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+    put:
+      <<: *rooms_update
+      operationId: rooms_update_put
+    delete:
+      operationId: rooms_destroy
+      x-sabha-action: rooms#destroy
+      x-sabha-permission: manage_rooms
+      x-sabha-idempotency: natural
+      summary: Delete a room the app made.
+      responses:
+        "204": { description: Deleted. }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /api/v1/rooms/{room_id}/messages:
+    parameters: [ { $ref: "#/components/parameters/RoomId" } ]
+    get:
+      operationId: messages_index
+      x-sabha-action: messages#index
+      x-sabha-permission: read_messages
+      x-sabha-idempotency: natural
+      summary: A room's messages, newest first, a page at a time.
+      parameters:
+        - { name: before, in: query, schema: { type: string }, description: "An ISO8601 time, or the next_cursor of the page before." }
+        - { name: after, in: query, schema: { type: string }, description: An ISO8601 time. }
+        - { name: limit, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: A page of messages.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ results, has_more, next_cursor ]
+                properties:
+                  results: { type: array, items: { $ref: "#/components/schemas/Message" } }
+                  has_more: { type: boolean }
+                  next_cursor: { type: [ string, "null" ] }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+    post:
+      operationId: messages_create
+      x-sabha-action: messages#create
+      x-sabha-permission: post
+      x-sabha-idempotency: client_message_id
+      summary: Post a message, or a reply in the thread under parent_message_id.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body: { type: string, description: HTML or plain text. }
+                text: { type: string, description: "Slack mrkdwn, instead of body." }
+                blocks: { $ref: "#/components/schemas/Blocks" }
+                parent_message_id: { type: integer }
+                client_message_id: { type: string }
+          text/plain:
+            schema: { type: string, description: The message itself. }
+          text/html:
+            schema: { type: string, description: "Rich text, within ActionText's safelist." }
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                body: { type: string }
+                attachment: { type: string }
+                parent_message_id: { type: integer }
+                client_message_id: { type: string }
+      responses:
+        "201": { $ref: "#/components/responses/Posted" }
+        "200":
+          description: A repeat of a post with the same client_message_id; nothing new was posted.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Posted" }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /api/v1/rooms/{room_id}/ephemerals:
+    parameters: [ { $ref: "#/components/parameters/RoomId" } ]
+    post:
+      operationId: ephemerals_create
+      x-sabha-action: ephemerals#create
+      x-sabha-permission: post
+      x-sabha-idempotency: none
+      summary: A private reply only one member sees, not saved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ user_id ]
+              properties:
+                user_id: { type: integer }
+                body: { type: string }
+                blocks: { $ref: "#/components/schemas/Blocks" }
+                parent_message_id: { type: integer }
+      responses:
+        "202": { description: "Delivered to the member, if they're looking." }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/v1/rooms/{room_id}/status:
+    parameters: [ { $ref: "#/components/parameters/RoomId" } ]
+    patch: &statuses_update
+      operationId: statuses_update_patch
+      x-sabha-action: statuses#update
+      x-sabha-permission: post
+      x-sabha-idempotency: natural
+      summary: Show a status line where the app's reply will land; blank clears it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string }
+                parent_message_id: { type: integer }
+      responses:
+        "200":
+          description: The status is showing. Setting it again keeps the same draft.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ draft_id ]
+                properties:
+                  draft_id: { type: string }
+        "204": { description: A blank status cleared it. }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    put:
+      <<: *statuses_update
+      operationId: statuses_update_put
+    delete:
+      operationId: statuses_destroy
+      x-sabha-action: statuses#destroy
+      x-sabha-permission: post
+      x-sabha-idempotency: natural
+      summary: Clear the app's status there.
+      parameters:
+        - { name: parent_message_id, in: query, schema: { type: integer } }
+      responses:
+        "204": { description: "Cleared, or there was none." }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/v1/rooms/{room_id}/drafts:
+    parameters: [ { $ref: "#/components/parameters/RoomId" } ]
+    post:
+      operationId: drafts_create
+      x-sabha-action: drafts#create
+      x-sabha-permission: post
+      x-sabha-idempotency: natural
+      summary: Open a live draft where the app's reply will land; post with its id as client_message_id to finish it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ draft_id ]
+              properties:
+                draft_id: { type: string, description: "A UUID the app chooses for the draft. Opening it again shows the same shell." }
+                parent_message_id: { type: integer }
+      responses:
+        "201":
+          description: The draft is showing.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ draft_id ]
+                properties:
+                  draft_id: { type: string }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/v1/rooms/{room_id}/members:
+    parameters: [ { $ref: "#/components/parameters/RoomId" } ]
+    get:
+      operationId: members_index
+      x-sabha-action: members#index
+      x-sabha-permission: read_directory
+      x-sabha-idempotency: natural
+      summary: Who is in a room.
+      responses:
+        "200":
+          description: The members.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [ id, name, role ]
+                  properties:
+                    id: { type: integer }
+                    name: { type: string }
+                    role: { type: string }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: members_create
+      x-sabha-action: members#create
+      x-sabha-permission: manage_rooms
+      x-sabha-idempotency: none
+      summary: Add someone to a room the app made.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ user_id ]
+              properties:
+                user_id: { type: integer }
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserRef" }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /api/v1/rooms/{room_id}/members/{id}:
+    parameters: [ { $ref: "#/components/parameters/RoomId" }, { $ref: "#/components/parameters/Id" } ]
+    delete:
+      operationId: members_destroy
+      x-sabha-action: members#destroy
+      x-sabha-permission: manage_rooms
+      x-sabha-idempotency: natural
+      summary: Remove someone from a room the app made.
+      responses:
+        "204": { description: Removed. }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /api/v1/rooms/{room_id}/membership:
+    parameters: [ { $ref: "#/components/parameters/RoomId" } ]
+    post:
+      operationId: memberships_create
+      x-sabha-action: memberships#create
+      x-sabha-permission: manage_rooms
+      x-sabha-idempotency: natural
+      summary: The app joins an open room.
+      responses:
+        "201": { $ref: "#/components/responses/Room" }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+    delete:
+      operationId: memberships_destroy
+      x-sabha-action: memberships#destroy
+      x-sabha-permission: none
+      x-sabha-idempotency: natural
+      summary: The app leaves a room.
+      responses:
+        "204": { description: Left. }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /api/v1/messages/{id}:
+    parameters: [ { $ref: "#/components/parameters/Id" } ]
+    get:
+      operationId: messages_show
+      x-sabha-action: messages#show
+      x-sabha-permission: read_messages
+      x-sabha-idempotency: natural
+      summary: One message, with who it mentions.
+      responses:
+        "200":
+          description: The message.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageWithMentionees" }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch: &messages_update
+      operationId: messages_update_patch
+      x-sabha-action: messages#update
+      x-sabha-permission: post
+      x-sabha-idempotency: natural
+      summary: Edit a message the app posted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body: { type: string }
+                blocks: { $ref: "#/components/schemas/Blocks" }
+          text/plain:
+            schema: { type: string, description: The new text. }
+      responses:
+        "200":
+          description: The edited message.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ id, body, blocks ]
+                properties:
+                  id: { type: integer }
+                  body: { $ref: "#/components/schemas/Body" }
+                  blocks: { type: [ array, "null" ] }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+    put:
+      <<: *messages_update
+      operationId: messages_update_put
+    delete:
+      operationId: messages_destroy
+      x-sabha-action: messages#destroy
+      x-sabha-permission: post
+      x-sabha-idempotency: natural
+      summary: Delete a message the app posted.
+      responses:
+        "204": { description: Deleted. }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/messages/{message_id}/reactions:
+    parameters: [ { $ref: "#/components/parameters/MessageId" } ]
+    get:
+      operationId: messages_reactions_index
+      x-sabha-action: messages/reactions#index
+      x-sabha-permission: read_messages
+      x-sabha-idempotency: natural
+      summary: A message's reactions, grouped by emoji.
+      responses:
+        "200":
+          description: The reactions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ reactions, total, truncated ]
+                properties:
+                  reactions:
+                    type: array
+                    items:
+                      type: object
+                      required: [ content, count, users, truncated ]
+                      properties:
+                        content: { type: string }
+                        count: { type: integer }
+                        users: { type: array, items: { $ref: "#/components/schemas/UserRef" } }
+                        truncated: { type: boolean }
+                  total: { type: integer }
+                  truncated: { type: boolean }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: messages_reactions_create
+      x-sabha-action: messages/reactions#create
+      x-sabha-permission: post
+      x-sabha-idempotency: natural
+      summary: React to a message. Reacting again with the same emoji is 422 already_reacted, so a retry can count it done.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ body ]
+              properties:
+                body: { type: string }
+          text/plain:
+            schema: { type: string, description: The emoji. }
+      responses:
+        "201":
+          description: The reaction.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ id, content ]
+                properties:
+                  id: { type: integer }
+                  content: { type: string }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /api/v1/messages/{message_id}/reactions/{id}:
+    parameters: [ { $ref: "#/components/parameters/MessageId" }, { $ref: "#/components/parameters/Id" } ]
+    delete:
+      operationId: messages_reactions_destroy
+      x-sabha-action: messages/reactions#destroy
+      x-sabha-permission: post
+      x-sabha-idempotency: natural
+      summary: Take back a reaction the app made.
+      responses:
+        "204": { description: Removed. }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/drafts/{id}:
+    parameters: [ { name: id, in: path, required: true, schema: { type: string }, description: "The draft_id the app opened it with." } ]
+    patch: &drafts_update
+      operationId: drafts_update_patch
+      x-sabha-action: drafts#update
+      x-sabha-permission: post
+      x-sabha-idempotency: natural
+      summary: Replace a draft's text so far, its activity line, or both. Send one update at a time.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text: { type: string, description: "The whole reply so far, not a delta; up to 16 KB." }
+                activity: { type: string, description: "The line under the text saying what the app is doing." }
+      responses:
+        "204": { description: "Shown. A text update within 0.1 s of the last is dropped; the next carries it." }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    put:
+      <<: *drafts_update
+      operationId: drafts_update_put
+    delete:
+      operationId: drafts_destroy
+      x-sabha-action: drafts#destroy
+      x-sabha-permission: post
+      x-sabha-idempotency: none
+      summary: Take down a draft that produced no message.
+      responses:
+        "204": { description: Taken down. }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/v1/interaction_responses:
+    post:
+      operationId: interaction_responses_create
+      x-sabha-action: interaction_responses#create
+      x-sabha-permission: post
+      x-sabha-idempotency: none
+      summary: >-
+        Answer a command or a button click through the response_url its event carried
+        (Slack's response_url). The token in that URL authenticates it, not the key.
+      security:
+        - responseUrlToken: []
+      parameters:
+        - { name: token, in: query, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text: { type: string }
+                blocks: { $ref: "#/components/schemas/Blocks" }
+                response_type: { enum: [ ephemeral, in_channel ] }
+                replace_original: { type: boolean }
+                delete_original: { type: boolean }
+      responses:
+        "200":
+          description: The original message was replaced.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ id ]
+                properties:
+                  id: { type: integer }
+        "201":
+          description: Posted in the room.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Posted" }
+        <<: *everywhere
+        "202": { description: Delivered privately to the member. }
+        "204": { description: The original message was deleted. }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { description: "The token is unknown, spent or expired." }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /api/v1/direct_messages:
+    post:
+      operationId: direct_messages_create
+      x-sabha-action: direct_messages#create
+      x-sabha-permission: dm
+      x-sabha-idempotency: natural
+      summary: Open, or find, the direct message between the app and these people.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ user_ids ]
+              properties:
+                user_ids: { type: array, items: { type: integer } }
+      responses:
+        "201": { $ref: "#/components/responses/DirectMessage" }
+        "200": { $ref: "#/components/responses/DirectMessage" }
+        <<: *keyed
+        "422": { $ref: "#/components/responses/Invalid" }
+        "500": { $ref: "#/components/responses/Invalid" }
+
+  /api/v1/search:
+    get:
+      operationId: searches_show
+      x-sabha-action: searches#show
+      x-sabha-permission: read_messages
+      x-sabha-idempotency: natural
+      summary: Search the messages the app can read.
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string } }
+        - { name: "room_ids[]", in: query, schema: { type: array, items: { type: integer } }, description: Only these rooms. }
+        - { name: "author_ids[]", in: query, schema: { type: array, items: { type: integer } }, description: Only these authors. }
+        - { name: before, in: query, schema: { type: string } }
+        - { name: after, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: A page of matches.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ results, has_more, next_cursor ]
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      required: [ id, creator, body, room, created_at ]
+                      properties:
+                        id: { type: integer }
+                        creator: { $ref: "#/components/schemas/UserRef" }
+                        body: { $ref: "#/components/schemas/Body" }
+                        room:
+                          type: object
+                          required: [ id, name ]
+                          properties:
+                            id: { type: integer }
+                            name: { type: [ string, "null" ] }
+                        created_at: { type: string }
+                  has_more: { type: boolean }
+                  next_cursor: { type: [ string, "null" ] }
+        <<: *keyed
+        "422": { $ref: "#/components/responses/Invalid" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /api/v1/users:
+    get:
+      operationId: users_index
+      x-sabha-action: users#index
+      x-sabha-permission: read_directory
+      x-sabha-idempotency: natural
+      summary: The people the app can see, or a room's with room_id.
+      parameters:
+        - { name: room_id, in: query, schema: { type: integer } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PerPage" }
+      responses:
+        "200":
+          description: The people.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/User" } }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/users/{id}:
+    parameters: [ { $ref: "#/components/parameters/Id" } ]
+    get:
+      operationId: users_show
+      x-sabha-action: users#show
+      x-sabha-permission: read_directory
+      x-sabha-idempotency: natural
+      summary: One person, with their profile, found among a room's people with room_id.
+      parameters:
+        - { name: room_id, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: The person.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserProfile" }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/autocompletable/users:
+    get:
+      operationId: autocompletable_users_index
+      x-sabha-action: autocompletable/users#index
+      x-sabha-permission: read_directory
+      x-sabha-idempotency: natural
+      summary: People whose names match, for an @mention picker.
+      parameters:
+        - { name: query, in: query, schema: { type: string } }
+        - { name: room_id, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: The matches.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/User" } }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /webhooks/{token}:
+    parameters: [ { $ref: "#/components/parameters/WebhookToken" } ]
+    post: &incoming_webhooks_create
+      operationId: incoming_webhooks_create
+      x-sabha-action: incoming_webhooks#create
+      x-sabha-permission: none
+      x-sabha-idempotency: idempotency_key
+      summary: Post into the webhook's room (Slack's incoming webhooks). The token is the URL's own; no key.
+      security: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          schema: { type: string }
+          description: 1 to 255 printable ASCII characters. A retry with the same key posts nothing new and answers ok.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text: { type: string }
+                blocks: { $ref: "#/components/schemas/Blocks" }
+                thread_ts: { type: string }
+      responses:
+        <<: *everywhere
+        "200": { $ref: "#/components/responses/WebhookOk" }
+        "400": { $ref: "#/components/responses/WebhookRefused" }
+        "404": { $ref: "#/components/responses/WebhookRefused" }
+        "410": { $ref: "#/components/responses/WebhookRefused" }
+        "429": { $ref: "#/components/responses/WebhookRefused" }
+        "503": { $ref: "#/components/responses/WebhookRefused" }
+
+  /hooks/{token}:
+    parameters: [ { $ref: "#/components/parameters/WebhookToken" } ]
+    post:
+      <<: *incoming_webhooks_create
+      operationId: incoming_webhooks_create_mattermost
+      summary: The same as /webhooks/{token}, at the path Mattermost tools post to.
+
+webhooks:
+  message_created: { $ref: "#/components/pathItems/MessageEvent" }
+  message_updated: { $ref: "#/components/pathItems/MessageEvent" }
+  message_deleted: { $ref: "#/components/pathItems/MessageEvent" }
+  reaction_created: { $ref: "#/components/pathItems/ReactionEvent" }
+  reaction_deleted: { $ref: "#/components/pathItems/ReactionEvent" }
+  user_created: { $ref: "#/components/pathItems/UserEvent" }
+  user_deleted: { $ref: "#/components/pathItems/UserEvent" }
+  command: { $ref: "#/components/pathItems/CommandEvent" }
+  block_actions: { $ref: "#/components/pathItems/BlockActionsEvent" }
+
+components:
+  securitySchemes:
+    appKey:
+      type: http
+      scheme: bearer
+      description: The app's key (sabha_app_…), from its page under Settings → Apps.
+    responseUrlToken:
+      type: apiKey
+      in: query
+      name: token
+      description: The token in a command's or a click's response_url.
+
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: integer } }
+    RoomId: { name: room_id, in: path, required: true, schema: { type: integer } }
+    Page: { name: page, in: query, schema: { type: integer }, description: "From 1." }
+    PerPage: { name: per_page, in: query, schema: { type: integer }, description: "1 to 100; 50 by default." }
+    MessageId: { name: message_id, in: path, required: true, schema: { type: integer } }
+    WebhookToken: { name: token, in: path, required: true, schema: { type: string } }
+
+  headers:
+    RetryAfter:
+      description: Seconds to wait before trying again.
+      schema: { type: integer }
+    Signature:
+      description: "sha256= and the HMAC-SHA256 of \"<timestamp>.<body>\" with the app's webhook secret."
+      schema: { type: string }
+
+  responses:
+    Unauthorized:
+      description: The key is missing, wrong or revoked.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Forbidden:
+      description: >-
+        The key lacks a permission (code missing_permission, with needed), or the app may not do
+        this here (code forbidden).
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    NotFound:
+      description: Not there, or not somewhere the app can reach.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Invalid:
+      description: The request can't be done as asked; error says why.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    RateLimited:
+      description: Too many in a short time.
+      headers: { Retry-After: { $ref: "#/components/headers/RetryAfter" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Unavailable:
+      description: The workspace is offline (code workspace_offline, with Retry-After), or a service the post needs is down (code service_unavailable); try again.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Offline:
+      description: The workspace is offline for a moment (code workspace_offline); try again after Retry-After.
+      headers: { Retry-After: { $ref: "#/components/headers/RetryAfter" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Moved:
+      description: >-
+        The workspace moved to another server. Repeat the request at Location: 301 for a read,
+        308 (same method and body) for anything else.
+      headers: { Location: { schema: { type: string } } }
+    Room:
+      description: The room.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Room" } } }
+    Posted:
+      description: Posted.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Posted" } } }
+    Commands:
+      description: The app's slash commands.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [ commands ]
+            properties:
+              commands:
+                type: array
+                items:
+                  type: object
+                  required: [ name, description, usage_hint, enabled ]
+                  properties:
+                    name: { type: string }
+                    description: { type: [ string, "null" ] }
+                    usage_hint: { type: [ string, "null" ] }
+                    enabled: { type: boolean }
+    DirectMessage:
+      description: The direct message.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [ room ]
+            properties:
+              room:
+                type: object
+                required: [ id ]
+                properties:
+                  id: { type: integer }
+    WebhookOk:
+      description: Posted.
+      content: { text/plain: { schema: { const: ok } } }
+    WebhookRefused:
+      description: >-
+        Slack's error name as text: invalid_payload, invalid_idempotency_key or no_text (400), no_service (404),
+        channel_is_archived (410), rate_limited (429, with Retry-After), or workspace_offline (503, with Retry-After).
+      content: { text/plain: { schema: { type: string } } }
+
+  pathItems:
+    MessageEvent:
+      post:
+        summary: A message was posted, edited or deleted where the app hears it.
+        security: []
+        parameters: &signature_headers
+          - { name: X-Sabha-Signature, in: header, required: true, schema: { type: string } }
+          - { name: X-Sabha-Timestamp, in: header, required: true, schema: { type: string } }
+          - { name: X-Sabha-Event, in: header, required: true, schema: { type: string } }
+          - { name: X-Sabha-Delivery, in: header, required: true, schema: { type: string } }
+        requestBody:
+          content: { application/json: { schema: { $ref: "#/components/schemas/MessageEvent" } } }
+        responses: &event_responses
+          "200": { description: Any 2xx acknowledges the delivery. }
+    ReactionEvent:
+      post:
+        summary: A reaction was added to, or taken from, a message where the app hears it.
+        security: []
+        parameters: *signature_headers
+        requestBody:
+          content: { application/json: { schema: { $ref: "#/components/schemas/ReactionEvent" } } }
+        responses: *event_responses
+    UserEvent:
+      post:
+        summary: Someone joined the workspace, or was deactivated.
+        security: []
+        parameters: *signature_headers
+        requestBody:
+          content: { application/json: { schema: { $ref: "#/components/schemas/UserEvent" } } }
+        responses: *event_responses
+    CommandEvent:
+      post:
+        summary: A member ran one of the app's slash commands.
+        security: []
+        parameters: *signature_headers
+        requestBody:
+          content: { application/json: { schema: { $ref: "#/components/schemas/CommandEvent" } } }
+        responses: *event_responses
+    BlockActionsEvent:
+      post:
+        summary: A member clicked a button or picked an option on one of the app's cards.
+        security: []
+        parameters: *signature_headers
+        requestBody:
+          content: { application/json: { schema: { $ref: "#/components/schemas/BlockActionsEvent" } } }
+        responses: *event_responses
+
+  schemas:
+    Error:
+      type: object
+      required: [ error, code ]
+      properties:
+        error: { type: string, description: "What went wrong, for a person to read." }
+        code:
+          type: string
+          description: >-
+            For a program: unauthorized, forbidden, missing_permission, not_found,
+            validation_failed, rate_limited, workspace_offline, service_unavailable or internal_error. New codes
+            may be added.
+        needed: { type: string, description: "With missing_permission, the permission to turn on." }
+        refusals: { type: array, description: "With a refused command list, why each entry was refused." }
+
+    UserRef:
+      type: object
+      required: [ id, name ]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+
+    User:
+      type: object
+      required: &user_required [ id, name, role, bot, url ]
+      properties: &user_properties
+        id: { type: integer }
+        name: { type: string }
+        role: { type: string }
+        bot: { type: boolean }
+        url: { type: string }
+
+    UserProfile:
+      type: object
+      required: *user_required
+      properties:
+        <<: *user_properties
+        bio: { type: [ string, "null" ] }
+        twitter_url: { type: [ string, "null" ] }
+        linkedin_url: { type: [ string, "null" ] }
+        personal_url: { type: [ string, "null" ] }
+
+    Room:
+      type: object
+      required: [ id, name, type, messages_url ]
+      properties:
+        id: { type: integer }
+        name: { type: [ string, "null" ] }
+        type: { type: string, description: "Open, Closed, Forum, Direct, Thread or Post." }
+        messages_url: { type: string }
+
+    Posted:
+      type: object
+      required: [ id, room_id ]
+      properties:
+        id: { type: integer }
+        room_id: { type: integer }
+
+    Body:
+      type: object
+      required: [ html, plain, markdown ]
+      properties:
+        html: { type: string }
+        plain: { type: string }
+        markdown: { type: string }
+
+    Blocks:
+      type: array
+      description: Block Kit blocks, the subset APPS.md §7 lists. The server's own check is the authority.
+      items: { type: object }
+
+    Attachment:
+      type: [ object, "null" ]
+      description: The message's file, or null. The url is signed and lasts an hour.
+      required: [ url, filename, content_type, byte_size ]
+      properties:
+        url: { type: string }
+        filename: { type: string }
+        content_type: { type: string }
+        byte_size: { type: integer }
+
+    Thread:
+      type: [ object, "null" ]
+      description: Where a message in a thread sits, or null for a message in the room itself.
+      required: [ id, parent_message_id, parent_room_id ]
+      properties:
+        id: { type: integer }
+        parent_message_id: { type: integer }
+        parent_room_id: { type: integer }
+
+    Replies:
+      type: [ object, "null" ]
+      description: The thread under a message, or null when it has none.
+      required: [ room_id, count ]
+      properties:
+        room_id: { type: integer }
+        count: { type: integer }
+
+    Message:
+      type: object
+      required: [ id, creator, body, attachment, room_id, thread, replies, url, created_at ]
+      properties: &message_properties
+        id: { type: integer }
+        creator: { $ref: "#/components/schemas/UserRef" }
+        body: { $ref: "#/components/schemas/Body" }
+        blocks: { $ref: "#/components/schemas/Blocks" }
+        attachment: { $ref: "#/components/schemas/Attachment" }
+        room_id: { type: integer }
+        thread: { $ref: "#/components/schemas/Thread" }
+        replies: { $ref: "#/components/schemas/Replies" }
+        url: { type: string }
+        created_at: { type: string }
+
+    MessageWithMentionees:
+      type: object
+      required: [ id, creator, body, attachment, room_id, thread, replies, url, created_at, mentionees ]
+      properties:
+        <<: *message_properties
+        mentionees: { type: array, items: { $ref: "#/components/schemas/UserRef" } }
+
+    EventUser:
+      type: object
+      required: [ id, name, role, url ]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        role: { type: string }
+        url: { type: string }
+
+    EventRoom:
+      type: object
+      required: [ id, name, type, members, has_app, messages_url ]
+      properties:
+        id: { type: integer }
+        name: { type: [ string, "null" ] }
+        type: { type: string }
+        members: { type: integer }
+        has_app: { type: boolean, description: Whether the app is a member. }
+        messages_url: { type: string }
+
+    EventMessage:
+      type: object
+      required: [ id, body, has_attachment, attachment, mentionees, url, created_at, updated_at, thread, replies ]
+      properties:
+        id: { type: integer }
+        body: { $ref: "#/components/schemas/Body" }
+        blocks: { $ref: "#/components/schemas/Blocks" }
+        has_attachment: { type: boolean }
+        attachment: { $ref: "#/components/schemas/Attachment" }
+        mentionees: { type: array, items: { $ref: "#/components/schemas/UserRef" } }
+        url: { type: string }
+        created_at: { type: string }
+        updated_at: { type: string }
+        thread: { $ref: "#/components/schemas/Thread" }
+        replies: { $ref: "#/components/schemas/Replies" }
+
+    MessageEvent:
+      type: object
+      required: [ event, user, room, message ]
+      properties:
+        event: { enum: [ message_created, message_updated, message_deleted ] }
+        user: { $ref: "#/components/schemas/EventUser" }
+        room: { $ref: "#/components/schemas/EventRoom" }
+        message: { $ref: "#/components/schemas/EventMessage" }
+        mentions_app: { type: boolean, description: "On message_created only: whether it names the app itself, not just @everyone." }
+
+    ReactionEvent:
+      type: object
+      required: [ event, user, room, message, reaction ]
+      properties:
+        event: { enum: [ reaction_created, reaction_deleted ] }
+        user: { $ref: "#/components/schemas/EventUser" }
+        room: { $ref: "#/components/schemas/EventRoom" }
+        message: { $ref: "#/components/schemas/EventMessage" }
+        reaction:
+          type: object
+          required: [ id, body ]
+          properties:
+            id: { type: integer }
+            body: { type: string }
+
+    UserEvent:
+      type: object
+      required: [ event, user ]
+      properties:
+        event: { enum: [ user_created, user_deleted ] }
+        user: { $ref: "#/components/schemas/EventUser" }
+
+    CommandEvent:
+      type: object
+      required: [ id, event, command, text, user_id, user_name, room_id, room_name, response_url ]
+      properties:
+        id: { type: string }
+        event: { const: command }
+        command: { type: string, description: "The command with its slash, such as /deploy." }
+        text: { type: string }
+        user_id: { type: integer }
+        user_name: { type: string }
+        room_id: { type: integer }
+        room_name: { type: [ string, "null" ] }
+        thread: { $ref: "#/components/schemas/Thread" }
+        response_url: { type: string }
+
+    BlockActionsEvent:
+      type: object
+      required: [ id, event, user, room, message, actions, response_url ]
+      properties:
+        id: { type: string }
+        event: { const: block_actions }
+        user:
+          type: object
+          required: [ id, name, role ]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            role: { type: string }
+        room:
+          type: object
+          required: [ id, name ]
+          properties:
+            id: { type: integer }
+            name: { type: [ string, "null" ] }
+        message:
+          type: object
+          required: [ id, url ]
+          properties:
+            id: { type: integer }
+            url: { type: string }
+        actions:
+          type: array
+          items:
+            type: object
+            required: [ action_id, type ]
+            properties:
+              action_id: { type: string }
+              block_id: { type: string }
+              type: { type: string }
+              value: { type: string }
+              selected_option: { type: object }
+              selected_date: { type: string }
+        response_url: { type: string }
