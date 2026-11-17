@@ -1,0 +1,17 @@
+{
+  "name": "sabha-app-kit-examples",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sabha-co/app-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.0"
+  }
+}
