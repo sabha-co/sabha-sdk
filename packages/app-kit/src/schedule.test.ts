@@ -44,14 +44,23 @@ describe("due", () => {
     expect(due(spec, at("2026-11-16T08:59:00Z"), env)).toBeUndefined();
   });
 
+  it("carries retryFor past midnight, on the run's own date and weekday", () => {
+    const late = { at: "23:55", timezone: "UTC", days: "mon-fri", retryFor: 10 };
+    expect(due(late, at("2026-11-16T23:59:00Z"), env)).toBe("2026-11-16"); // Monday
+    expect(due(late, at("2026-11-17T00:05:00Z"), env)).toBe("2026-11-16");
+    expect(due(late, at("2026-11-17T00:06:00Z"), env)).toBeUndefined();
+    expect(due(late, at("2026-11-22T00:03:00Z"), env)).toBeUndefined(); // Sunday, after Saturday's no-run
+  });
+
   it("reads settings from env", () => {
     const spec = { at: (e: SabhaEnv & { AT?: string }) => e.AT ?? "", timezone: "UTC" };
     expect(due(spec, at("2026-11-16T07:15:00Z"), { ...env, AT: "07:15" })).toBe("2026-11-16");
   });
 
-  it("refuses an unknown timezone, time or days with a ConfigError", () => {
+  it("refuses an unknown timezone, time, days or retryFor with a ConfigError", () => {
     expect(() => due({ ...london, timezone: "Mars/Olympus" }, Date.now(), env)).toThrow(ConfigError);
     expect(() => due({ ...london, at: "9am" }, Date.now(), env)).toThrow(ConfigError);
+    expect(() => due({ ...london, retryFor: Number("ten") }, Date.now(), env)).toThrow(ConfigError);
     expect(() => parseDays("someday")).toThrow(ConfigError);
   });
 

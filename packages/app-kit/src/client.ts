@@ -21,6 +21,8 @@ export interface ClientOptions {
   logger?: Logger;
   /** How many times a call is tried before it fails. */
   attempts?: number;
+  /** How long one attempt may take before it's abandoned. */
+  timeoutMs?: number;
   /** Waits between retries; replaced in tests. */
   sleep?: (ms: number) => Promise<void>;
 }
@@ -108,6 +110,7 @@ export class SabhaClient {
   private readonly fetchImpl: FetchLike;
   private readonly logger: Logger;
   private readonly attempts: number;
+  private readonly timeoutMs: number;
   private readonly sleep: (ms: number) => Promise<void>;
 
   constructor(options: ClientOptions) {
@@ -117,6 +120,7 @@ export class SabhaClient {
     this.fetchImpl = options.fetch ?? ((input, init) => fetch(input, init));
     this.logger = options.logger ?? consoleLogger;
     this.attempts = options.attempts ?? 3;
+    this.timeoutMs = options.timeoutMs ?? 30_000;
     this.sleep = options.sleep ?? sleep;
   }
 
@@ -357,9 +361,12 @@ export class SabhaClient {
     const label = options.label ?? `${new URL(url).pathname}`;
     // The key goes only to Sabha's own origin, even when a caller names a full URL.
     let sendKey = auth && new URL(url).origin === new URL(this.baseUrl).origin;
+    // A repeat of this call is harmless: it isn't a POST, or Sabha folds repeats by its id.
+    const idempotent = options.idempotent ?? (method !== "POST" || hasClientMessageId(options.json));
+    let redirects = 0;
 
-    for (let attempt = 1; ; attempt++) {
-      const init: RequestInit = { method, redirect: "manual", headers: { Accept: "application/json", ...options.headers } };
+    for (let attempt = 1; ; ) {
+      const init: RequestInit = { method, redirect: "manual", signal: AbortSignal.timeout(this.timeoutMs), headers: { Accept: "application/json", ...options.headers } };
       const headers = init.headers as Record<string, string>;
       if (sendKey) headers.Authorization = `Bearer ${this.apiKey}`;
       if (options.json !== undefined) {
@@ -373,14 +380,15 @@ export class SabhaClient {
       try {
         response = await this.fetchImpl(url, init);
       } catch (error) {
-        if (attempt >= this.attempts) throw error;
-        await this.sleep(backoff(attempt));
+        // Sabha may have done it before the connection failed, so only a harmless call is tried again.
+        if (!idempotent || attempt >= this.attempts) throw error;
+        await this.sleep(backoff(attempt++));
         continue;
       }
 
       if (response.status === 301 || response.status === 308) {
         const location = response.headers.get("Location");
-        if (!location || attempt >= this.attempts + 2) throw await apiError(response, method, label);
+        if (!location || ++redirects > 2) throw await apiError(response, method, label);
         const next = new URL(location, url);
         // The key goes only to the origin it was meant for.
         if (next.origin !== new URL(url).origin) sendKey = false;
@@ -389,10 +397,11 @@ export class SabhaClient {
       }
       if (response.ok) return response;
 
-      const retryable = response.status === 429 || RETRYABLE_STATUSES.has(response.status);
-      if (!retryable || attempt >= this.attempts) throw await apiError(response, method, label);
+      // 429 and 503 mean Sabha didn't take the call; a gateway's 502 or 504 may hide one it did.
+      const retryable = response.status === 429 || response.status === 503 || (idempotent && RETRYABLE_STATUSES.has(response.status));
+      if (!retryable || attempt++ >= this.attempts) throw await apiError(response, method, label);
       const retryAfter = Number(response.headers.get("Retry-After"));
-      const wait = response.status === 429 && Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, 60) * 1000 : backoff(attempt);
+      const wait = response.status === 429 && Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, 60) * 1000 : backoff(attempt - 1);
       this.logger.warn("retrying a Sabha API call", { method, path: label, status: response.status, wait_ms: wait });
       await this.sleep(wait);
     }
@@ -416,8 +425,19 @@ export interface RequestOptions {
   headers?: Record<string, string>;
   /** False for URLs that carry their own token, such as a response_url. */
   auth?: boolean;
+  /**
+   * Whether repeating the call is harmless, so it's retried after a lost connection or a
+   * gateway error. Defaults to true except for a POST without a client message id.
+   */
+  idempotent?: boolean;
   /** How the call is named in errors and logs, in place of its path. */
   label?: string;
+}
+
+function hasClientMessageId(json: unknown): boolean {
+  if (typeof json !== "object" || json === null) return false;
+  const ids = json as { client_message_id?: unknown; draft_id?: unknown };
+  return typeof ids.client_message_id === "string" || typeof ids.draft_id === "string";
 }
 
 function backoff(attempt: number): number {

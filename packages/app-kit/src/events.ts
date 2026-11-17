@@ -94,6 +94,10 @@ export function parseEvent(raw: unknown): SabhaEvent {
         throw new EventShapeError("block_actions without id, actions or response_url");
       }
       break;
+    case "user_created":
+    case "user_deleted":
+      if (!has(raw.user, "id")) throw new EventShapeError(`${raw.event} without user`);
+      break;
   }
   return raw as unknown as SabhaEvent;
 }

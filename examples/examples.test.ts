@@ -23,7 +23,7 @@ async function deliver<Env extends SabhaEnv>(app: App<Env>, payload: Parameters<
     env: { ...env, ...extra } as Env,
     waitUntil: (promise) => void pending.push(promise),
   });
-  await Promise.all(pending);
+  while (pending.length) await pending.shift();
   return response;
 }
 
@@ -32,10 +32,10 @@ const responseUrlCalls = (sabha: FakeSabha) => sabha.calls.filter((call) => call
 afterEach(() => vi.unstubAllGlobals());
 
 describe("mention-reply", () => {
-  it("answers a mention inline with a greeting", async () => {
-    fakeSabha();
-    const response = await deliver(mentionReply, messageEvent());
-    expect(await response.text()).toBe("Hi Asha! Ask me in a thread and I'll answer there.");
+  it("answers a mention with a greeting", async () => {
+    const sabha = fakeSabha();
+    await deliver(mentionReply, messageEvent());
+    expect(sabha.messages.map((message) => message.body)).toEqual(["Hi Asha! Ask me in a thread and I'll answer there."]);
   });
 
   it("says pong to ping in a thread", async () => {

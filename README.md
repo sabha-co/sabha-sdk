@@ -45,9 +45,9 @@ An admin makes the app in **Settings → Apps → New**, picks its permissions (
 
 | Register | Runs on | The context adds | A returned value |
 |---|---|---|---|
-| `app.mention(h)` | a message that mentions the app | `message`, `room` | is the reply |
-| `app.message(h)`, `app.message({ in: "dm" }, h)` | every message the app hears; `in` is `dm`, `thread`, `room` or `post` | `message`, `room` | is the reply |
-| `app.reaction(h)`, `app.reaction({ emoji: "👀" }, h)` | a reaction added to a message | `message`, `room`, `reaction` | is the reply |
+| `app.mention(h)` | a message that mentions the app | `message`, `room` | is posted as the reply |
+| `app.message(h)`, `app.message({ in: "dm" }, h)` | every message the app hears; `in` is `dm`, `thread`, `room` or `post` | `message`, `room` | is posted as the reply |
+| `app.reaction(h)`, `app.reaction({ emoji: "👀" }, h)` | a reaction added to a message | `message`, `room`, `reaction` | is posted as the reply |
 | `app.command("/name", h)` | a slash command | `command`, `respond` | answers the command |
 | `app.action("id" \| /re/, h)` | a click on a control | `action`, `actions`, `respond` | goes to `respond` |
 | `app.event("name", h)` | any event: `message_updated`, `message_deleted`, `reaction_deleted`, `user_created`, `user_deleted`, … | | is ignored |
@@ -63,17 +63,19 @@ Every handler's context has `event`, `user` (who did it), `env`, `client` (the w
 
 ## Answering in time
 
-Sabha waits a limited time for an answer, so the kit races your handler against a window and keeps it running if it's late.
+Sabha waits a limited time for an answer. The kit answers inside it and keeps every handler running after the answer, through `waitUntil`.
 
-| Event | Window | Quick result | Late result |
-|---|---|---|---|
-| `command` | 3 s | the inline answer | sent to `response_url` (Sabha waits 15 s from the member's command) |
-| a message or reaction | 280 s | Sabha posts the returned text as the app's reply | posted with `say` |
-| anything else | 25 s | accepted | keeps running |
+| Event | The kit answers Sabha | A returned value |
+|---|---|---|
+| `command` | with the first handler's value, if one returns within 3 s | after that, goes to `response_url` (Sabha waits 15 s from the member's command) |
+| a message or reaction | at once | is posted with `say` |
+| anything else | when its handlers finish, within 25 s | is ignored |
 
-A reply posted inline needs the `post` permission. An app without it should pass `new App({ inlineReplies: false })`, so the kit accepts within Sabha's 30 s.
+Each handler's value is sent as soon as that handler finishes; a slow handler never holds back a quick one.
 
-On Cloudflare a late handler keeps running through `waitUntil`, which allows 30 s after the answer. Past that, see [Long work](#long-work).
+`new App({ inlineReplies: true })` turns on Sabha's auto-reply shortcut for messages and reactions: a handler that returns a string within 280 s has it posted by Sabha as the reply, with no API call. Use it only when the app holds the `post` permission: without it Sabha waits just 30 s and retries. Objects still go through `say`, so they render the same however quick the handler was.
+
+On Cloudflare `waitUntil` allows 30 s after the answer. Past that, see [Long work](#long-work).
 
 ## Retrying
 

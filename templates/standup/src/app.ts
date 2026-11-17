@@ -32,20 +32,25 @@ export function createStandup(options: AppOptions = {}): App<StandupEnv> {
   });
 
   app.schedule("prompt", when((env) => env.STANDUP_PROMPT_AT), async ({ env, client, runKey, stableId }) => {
-    await client.post(roomOf(env), { body: env.STANDUP_PROMPT_TEXT || DEFAULT_PROMPT, clientMessageId: await stableId(runKey) });
+    const roomId = roomOf(env);
+    // Keyed by room too: a client message id is unique across the workspace, so a second
+    // standup on the same app, or a room changed mid-day, still posts.
+    await client.post(roomId, { body: env.STANDUP_PROMPT_TEXT || DEFAULT_PROMPT, clientMessageId: await stableId(`${runKey}:${roomId}`) });
   });
 
   app.schedule("digest", when((env) => env.STANDUP_DIGEST_AT), async ({ env, client, logger, localDate, runKey, stableId }) => {
     const roomId = roomOf(env);
     const me = await client.me();
-    const since = instantAt(localDate, env.STANDUP_PROMPT_AT, env.STANDUP_TIMEZONE);
+    // From the start of the local day, not the prompt time: on a clock-change day the prompt
+    // goes out an hour off its nominal time, and today's first app post is still the prompt.
+    const since = instantAt(localDate, "00:00", env.STANDUP_TIMEZONE);
     const prompt = await findPrompt(client, roomId, me.id, since);
     if (!prompt) {
       logger.info("no standup prompt today, so no digest", { room_id: roomId, date: localDate });
       return;
     }
     const updates = prompt.replies ? await readUpdates(client, prompt.replies.room_id, me.id) : [];
-    await client.post(roomId, { body: digestHtml(updates, { localDate, threadUrl: prompt.url }), clientMessageId: await stableId(runKey) });
+    await client.post(roomId, { body: digestHtml(updates, { localDate, threadUrl: prompt.url }), clientMessageId: await stableId(`${runKey}:${roomId}`) });
   });
 
   return app;

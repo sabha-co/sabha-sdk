@@ -68,6 +68,31 @@ describe("SabhaClient", () => {
     expect(calls).toHaveLength(3);
   });
 
+  it("never repeats a POST without an id after a lost connection or a gateway error", async () => {
+    const lost = recorder([new TypeError("fetch failed"), Response.json({})]);
+    await expect(lost.client.react(5, "👍")).rejects.toThrow("fetch failed");
+    expect(lost.calls).toHaveLength(1);
+
+    const gateway = recorder([new Response("", { status: 502 }), Response.json({})]);
+    await expect(gateway.client.react(5, "👍")).rejects.toBeInstanceOf(SabhaApiError);
+    expect(gateway.calls).toHaveLength(1);
+
+    const keyed = recorder([new TypeError("fetch failed"), Response.json({ id: 1, room_id: 2 }, { status: 201 })]);
+    await keyed.client.post(2, { body: "x", clientMessageId: "id" });
+    expect(keyed.calls).toHaveLength(2);
+  });
+
+  it("abandons an attempt that never answers", async () => {
+    const client = new SabhaClient({
+      baseUrl: "https://sabha.test",
+      apiKey: key,
+      timeoutMs: 20,
+      attempts: 1,
+      fetch: (_url, init) => new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal!.reason))),
+    });
+    await expect(client.me()).rejects.toThrow();
+  });
+
   it("raises missing_permission with the permission needed, never with the key or body", async () => {
     const { client } = recorder([Response.json({ code: "missing_permission", error: "Needs dm", needed: "dm" }, { status: 403 })]);
     const error = (await client.openDm([1]).catch((caught: unknown) => caught)) as SabhaApiError;

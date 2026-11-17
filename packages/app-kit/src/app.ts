@@ -19,9 +19,10 @@ import { stableId } from "./stable-id.js";
 export interface AppOptions {
   logger?: Logger;
   /**
-   * Whether Sabha posts a handler's quick answer to a message or reaction for it (the
-   * auto-reply shortcut). It does when the app holds `post`, which an app answering mentions
-   * needs anyway. Turn it off for an app without `post`: Sabha then waits only 30 seconds.
+   * Off by default. When on, a string a message or reaction handler returns within
+   * `replyWindowMs` is answered inline, and Sabha posts it as the app's reply (its auto-reply
+   * shortcut). Only for an app that holds `post`: Sabha waits only 30 s on any other, then
+   * retries the delivery.
    */
   inlineReplies?: boolean;
   /** How long a command's handler may take to answer inline. Sabha allows 15 s from when it ran. */
@@ -64,6 +65,9 @@ async function within<T>(work: Promise<T>, ms: number): Promise<T | "timeout"> {
 
 type Outcome = { ok: true; value: HandlerResult } | { ok: false; error: unknown };
 
+/** How long an event waits for the app's own id before going on without it. */
+const SELF_LOOKUP_MS = 5_000;
+
 /**
  * A Sabha app: one set of handlers, run the same over webhooks or the socket.
  *
@@ -83,7 +87,7 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
   constructor(options: AppOptions = {}) {
     this.logger = options.logger ?? consoleLogger;
     this.options = {
-      inlineReplies: options.inlineReplies ?? true,
+      inlineReplies: options.inlineReplies ?? false,
       commandWindowMs: options.commandWindowMs ?? 3_000,
       replyWindowMs: options.replyWindowMs ?? 280_000,
       acceptWindowMs: options.acceptWindowMs ?? 25_000,
@@ -187,10 +191,14 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
   }
 
   /**
-   * Runs an event's handlers. Over a webhook (`inline: true`) it answers within the event's
-   * window: the first matching handler's quick return value becomes Sabha's answer, and
-   * anything later goes through `say` or `respond`. Over the socket every return value is
-   * delivered through the API, a command's through the socket's answer frame when it's quick.
+   * Runs an event's handlers. Every handler is kept alive with `waitUntil` from the start.
+   *
+   * - A command is answered by the first handler to return a value within its window: inline
+   *   over a webhook, on the socket otherwise. Anything later goes to its `response_url`.
+   * - A message or reaction is accepted at once and every return value is posted with `say`;
+   *   with `inlineReplies`, the first string returned within the window is Sabha's reply.
+   * - Any other event waits for its handlers within the accept window, so a `RetryLater`
+   *   can ask Sabha to send it again.
    */
   async dispatch(event: SabhaEvent, runtime: Runtime<Env>, options: { inline: boolean; claimed?: boolean }): Promise<Answer | undefined> {
     const key = eventKey(event);
@@ -203,35 +211,54 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
     if (await this.isOwnEcho(event, runtime)) return undefined;
 
     const runs = routes.map(({ route, index }) => this.run(route, index, event, key, runtime));
-    const window = this.windowFor(event, options.inline);
     const settledAll = Promise.all(runs);
-    const first = await (window === undefined ? settledAll : within(settledAll, window));
+    // A host may end the request before the window does; the handlers keep running.
+    runtime.waitUntil(settledAll);
+    const deliverEach = (skip: number) =>
+      runs.forEach((run, position) => {
+        if (position !== skip) runtime.waitUntil(run.then((outcome) => this.deliverOutcome(event, outcome, routes[position]!.index, key, runtime)));
+      });
 
-    if (first === "timeout") {
-      runtime.waitUntil(settledAll.then((outcomes) => this.deliverAll(event, outcomes, routes.map((r) => r.index), key, runtime, undefined)));
-      return options.inline ? { status: 200, text: "" } : undefined;
-    }
-
-    const retry = first.some((outcome) => !outcome.ok && outcome.error instanceof RetryLater);
-    if (retry) {
-      if (!UNRETRIED_EVENTS.has(event.event) && options.inline) {
+    if (event.event !== "command" && !REPLY_EVENTS.has(event.event)) {
+      const outcomes = options.inline ? await within(settledAll, this.options.acceptWindowMs) : await settledAll;
+      if (outcomes !== "timeout" && outcomes.some((outcome) => !outcome.ok && outcome.error instanceof RetryLater) && options.inline && !UNRETRIED_EVENTS.has(event.event)) {
         if (key) this.seen.release(key);
         runtime.logger.info("a handler asked Sabha to retry", { event: event.event, key });
         return { status: 503 };
       }
-      runtime.logger.warn("RetryLater ignored: Sabha doesn't retry this event", { event: event.event, transport: runtime.transport });
+      deliverEach(-1);
+      return options.inline ? { status: 200, text: "" } : undefined;
     }
 
-    let inlineIndex = options.inline ? first.findIndex((outcome) => outcome.ok && this.inlineable(event, outcome.value)) : -1;
-    const answer = inlineIndex >= 0 ? this.toAnswer(event, (first[inlineIndex] as { value: HandlerResult }).value) : undefined;
-    if (!options.inline && event.event === "command" && runtime.answerCommand) {
-      // Over the socket a quick command answer goes back on the socket, like an inline answer.
-      const index = first.findIndex((outcome) => outcome.ok && outcome.value !== undefined && outcome.value !== null);
-      const quick = index >= 0 ? this.toAnswer(event, (first[index] as { value: HandlerResult }).value) : undefined;
-      if (quick && "json" in quick && runtime.answerCommand(event.id, quick.json)) inlineIndex = index;
+    const window = this.windowFor(event, options.inline);
+    let index = -1;
+    if (window !== undefined) {
+      const picked = await within(this.firstQuick(runs, event, options.inline), window);
+      if (picked !== "timeout") index = picked;
     }
-    runtime.waitUntil(this.deliverAll(event, first, routes.map((r) => r.index), key, runtime, inlineIndex));
+    const value = index >= 0 ? (runs[index] ? ((await runs[index]) as { value: HandlerResult }).value : undefined) : undefined;
+    let answer: Answer | undefined;
+    if (index >= 0 && options.inline) answer = this.toAnswer(event, value);
+    else if (index >= 0 && event.event === "command") {
+      // Over the socket the quick answer goes back on the socket, when it can.
+      const quick = this.toAnswer(event, value);
+      if (!(quick && "json" in quick && runtime.answerCommand?.(event.id, quick.json))) index = -1;
+    }
+    deliverEach(index);
     return options.inline ? (answer ?? { status: 200, text: "" }) : undefined;
+  }
+
+  /** The position of the first run to settle with a value that can be the inline answer, or -1. */
+  private firstQuick(runs: Promise<Outcome>[], event: SabhaEvent, inline: boolean): Promise<number> {
+    return new Promise((resolve) => {
+      let left = runs.length;
+      runs.forEach((run, position) =>
+        run.then((outcome) => {
+          if (outcome.ok && this.inlineable(event, outcome.value, inline)) resolve(position);
+          else if (--left === 0) resolve(-1);
+        }),
+      );
+    });
   }
 
   /** Runs the schedules due at this tick. Each runs alone; one failing doesn't stop the rest. */
@@ -262,14 +289,17 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
 
   // Internals --------------------------------------------------------------------
 
+  /** How long to wait for an inline answer, or undefined for none. */
   private windowFor(event: SabhaEvent, inline: boolean): number | undefined {
     if (event.event === "command") return this.options.commandWindowMs;
-    if (!inline) return undefined;
-    if (REPLY_EVENTS.has(event.event) && this.options.inlineReplies) return this.options.replyWindowMs;
-    return this.options.acceptWindowMs;
+    if (inline && REPLY_EVENTS.has(event.event) && this.options.inlineReplies) return this.options.replyWindowMs;
+    return undefined;
   }
 
-  /** Sabha may send the app its own messages and reactions; never answer them. */
+  /**
+   * Sabha may send the app its own messages and reactions; never answer them. While the app's
+   * own id can't be read, an event from any app is treated as its own, so it never answers itself.
+   */
   private async isOwnEcho(event: SabhaEvent, runtime: Runtime<Env>): Promise<boolean> {
     if (event.event === "command" || event.event === "block_actions" || event.event === "user_created" || event.event === "user_deleted") return false;
     const cacheKey = runtime.env.SABHA_BASE_URL + runtime.env.SABHA_API_KEY;
@@ -285,7 +315,10 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
       );
       this.selves.set(cacheKey, self);
     }
-    return (await self) === event.user.id;
+    const id = await within(self, SELF_LOOKUP_MS);
+    if (id === "timeout") this.selves.delete(cacheKey);
+    if (typeof id !== "number") return (event.user as { role?: string }).role === "bot";
+    return id === event.user.id;
   }
 
   private async run(route: Route<Env>, index: number, event: SabhaEvent, key: string | undefined, runtime: Runtime<Env>): Promise<Outcome> {
@@ -300,15 +333,12 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
     }
   }
 
-  /** Whether a return value can be Sabha's inline answer to this event. */
-  private inlineable(event: SabhaEvent, value: HandlerResult): boolean {
+  /** Whether a return value can be the inline answer to this event. */
+  private inlineable(event: SabhaEvent, value: HandlerResult, inline: boolean): boolean {
     if (value === undefined || value === null) return false;
     if (event.event === "command") return true;
-    if (REPLY_EVENTS.has(event.event) && this.options.inlineReplies) {
-      // A JSON body would be posted as an attachment, so only text goes inline.
-      return typeof value === "string" || (typeof value.text === "string" && value.blocks === undefined);
-    }
-    return false;
+    // Inline text is the message body as Sabha stores it; anything richer goes through `say`.
+    return inline && REPLY_EVENTS.has(event.event) && this.options.inlineReplies && typeof value === "string";
   }
 
   private toAnswer(event: SabhaEvent, value: HandlerResult): Answer | undefined {
@@ -317,25 +347,18 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
     return { status: 200, text: typeof value === "string" ? value : String(value.text) };
   }
 
-  private async deliverAll(
-    event: SabhaEvent,
-    outcomes: Outcome[],
-    indexes: number[],
-    key: string | undefined,
-    runtime: Runtime<Env>,
-    answeredIndex: number | undefined,
-  ): Promise<void> {
-    await Promise.all(
-      outcomes.map(async (outcome, position) => {
-        if (!outcome.ok || position === answeredIndex) return;
-        if (outcome.value === undefined || outcome.value === null) return;
-        try {
-          await this.deliver(event, outcome.value, indexes[position]!, key, runtime);
-        } catch (error) {
-          runtime.logger.error("couldn't deliver a handler's answer", { event: event.event, error: describeError(error, secretsOf(runtime.env)) });
-        }
-      }),
-    );
+  /** Sends one handler's return value, if it has one, unless it was the inline answer. */
+  private async deliverOutcome(event: SabhaEvent, outcome: Outcome, index: number, key: string | undefined, runtime: Runtime<Env>): Promise<void> {
+    if (!outcome.ok) {
+      if (outcome.error instanceof RetryLater) runtime.logger.warn("RetryLater ignored: too late, or Sabha doesn't retry this event", { event: event.event, transport: runtime.transport });
+      return;
+    }
+    if (outcome.value === undefined || outcome.value === null) return;
+    try {
+      await this.deliver(event, outcome.value, index, key, runtime);
+    } catch (error) {
+      runtime.logger.error("couldn't deliver a handler's answer", { event: event.event, error: describeError(error, secretsOf(runtime.env)) });
+    }
   }
 
   /** Sends a return value that wasn't Sabha's inline answer. */

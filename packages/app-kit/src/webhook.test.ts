@@ -104,6 +104,17 @@ describe("handleWebhook: routing", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  it("treats any app's message as its own while its own id can't be read", async () => {
+    const { app, deliver } = setup();
+    const handler = vi.fn();
+    app.message(handler);
+    const unreadable = { SABHA_API_KEY: "sabha_app_unknown_key" };
+    await deliver(messageEvent({ message: { id: 31 }, user: { id: 50, name: "Other bot", role: "bot", url: "" } }), {}, unreadable);
+    expect(handler).not.toHaveBeenCalled();
+    await deliver(messageEvent({ message: { id: 32 } }), {}, unreadable);
+    expect(handler).toHaveBeenCalledOnce();
+  });
+
   it("never answers the app's own messages", async () => {
     const { app, deliver } = setup();
     const handler = vi.fn();
@@ -115,7 +126,7 @@ describe("handleWebhook: routing", () => {
 
 describe("handleWebhook: answers", () => {
   it("answers a mention inline with text/plain when the handler returns text in time", async () => {
-    const { app, deliver, sabha } = setup();
+    const { app, deliver, sabha } = setup({ inlineReplies: true });
     app.mention(({ user }) => `Hi ${user.name}`);
     const result = await deliver(messageEvent());
     expect(result).toMatchObject({ status: 200, body: "Hi Asha" });
@@ -141,6 +152,45 @@ describe("handleWebhook: answers", () => {
     await settle();
     expect(result.body).toBe("");
     expect(posts(sabha)).toHaveLength(1);
+  });
+
+  it("posts an object return through say even with inline replies, so it renders the same however quick", async () => {
+    const { app, deliver, sabha, settle } = setup({ inlineReplies: true });
+    app.mention(() => ({ text: "Deployed <https://ci.test/1|build 1>" }));
+    const result = await deliver(messageEvent());
+    await settle();
+    expect(result.body).toBe("");
+    expect(posts(sabha)[0]!.body).toMatchObject({ text: "Deployed <https://ci.test/1|build 1>" });
+  });
+
+  it("accepts a message at once by default, keeping its handler alive past the response", async () => {
+    const { app, deliver, sabha, settle } = setup();
+    let finished = false;
+    app.message(async ({ say }) => {
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      await say("synced");
+      finished = true;
+    });
+    const result = await deliver(messageEvent());
+    expect(result).toMatchObject({ status: 200, body: "" });
+    expect(finished).toBe(false);
+    await settle();
+    expect(finished).toBe(true);
+    expect(posts(sabha)).toHaveLength(1);
+  });
+
+  it("answers a command from its quick handler while a slow sibling is still running", async () => {
+    const { app, deliver, sabha, settle } = setup({ commandWindowMs: 50 });
+    app.command("/deploy", () => "Deploying…");
+    app.event("command", async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    });
+    const started = Date.now();
+    const result = await deliver(commandEvent({ command: "/deploy" }));
+    expect(Date.now() - started).toBeLessThan(150);
+    expect(JSON.parse(result.body)).toEqual({ text: "Deploying…" });
+    await settle();
+    expect(sabha.calls.filter((call) => call.path === "/api/v1/interaction_responses")).toHaveLength(0);
   });
 
   it("answers a command inline with JSON within its window", async () => {
@@ -231,6 +281,7 @@ describe("handleWebhook: retries and repeats", () => {
       await say("two");
     });
     await first.deliver(messageEvent());
+    await first.settle();
     const ids = posts(first.sabha).map((call) => (call.body as { client_message_id: string }).client_message_id);
     expect(new Set(ids).size).toBe(2);
 
@@ -241,6 +292,7 @@ describe("handleWebhook: retries and repeats", () => {
       await say("two");
     });
     await second.deliver(messageEvent());
+    await second.settle();
     expect(posts(second.sabha).map((call) => (call.body as { client_message_id: string }).client_message_id)).toEqual(ids);
   });
 
@@ -258,12 +310,13 @@ describe("handleWebhook: retries and repeats", () => {
 
 describe("context helpers", () => {
   it("say posts in the event's room, or its thread when asked", async () => {
-    const { app, deliver, sabha } = setup();
+    const { app, deliver, sabha, settle } = setup();
     app.mention(async ({ say }) => {
       await say({ body: "in the room" });
       await say({ body: "in the thread", thread: true });
     });
     await deliver(messageEvent());
+    await settle();
     expect(posts(sabha).map((call) => call.path)).toEqual(["/api/v1/rooms/10/messages", "/api/v1/rooms/10/messages"]);
     expect(posts(sabha)[1]!.body).toMatchObject({ parent_message_id: 501 });
   });
@@ -278,7 +331,7 @@ describe("context helpers", () => {
   });
 
   it("a draft opens, updates and finishes as a post carrying the draft's id", async () => {
-    const { app, deliver, sabha } = setup();
+    const { app, deliver, sabha, settle } = setup();
     app.mention(async ({ draft, status }) => {
       await status("Thinking…");
       const reply = await draft();
@@ -286,6 +339,7 @@ describe("context helpers", () => {
       await reply.finish("Partial answer, done");
     });
     await deliver(messageEvent());
+    await settle();
     const opened = sabha.calls.find((call) => call.path === "/api/v1/rooms/10/drafts")!.body as { draft_id: string };
     expect(posts(sabha)[0]!.body).toMatchObject({ client_message_id: opened.draft_id });
     expect(sabha.calls.some((call) => call.path === "/api/v1/rooms/10/status" && call.method === "PUT")).toBe(true);

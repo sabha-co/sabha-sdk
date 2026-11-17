@@ -27,7 +27,7 @@ const standupEnv: StandupEnv = {
 
 let fakes: FakeSabha[] = [];
 
-function setup() {
+function setup(overrides: Partial<StandupEnv> = {}) {
   const sabha = new FakeSabha().app(KEY, APP);
   fakes.push(sabha);
   const errors: string[] = [];
@@ -37,7 +37,7 @@ function setup() {
     const at = Date.parse(iso);
     sabha.setNow(at);
     const ctx = createExecutionContext();
-    await worker.scheduled!(createScheduledController({ scheduledTime: at }), standupEnv, ctx);
+    await worker.scheduled!(createScheduledController({ scheduledTime: at }), { ...standupEnv, ...overrides }, ctx);
     await waitOnExecutionContext(ctx);
   };
   const posts = () => sabha.visible(ROOM).filter((message) => message.creator.id === APP.id);
@@ -80,6 +80,13 @@ describe("the prompt", () => {
 });
 
 describe("the digest", () => {
+  it("finds a prompt asked in the hour the clocks repeat", async () => {
+    const { tick, digest } = setup({ STANDUP_DAYS: "daily", STANDUP_PROMPT_AT: "01:30" });
+    await tick("2026-10-25T00:30:00Z"); // the first 01:30, still BST
+    await tick("2026-10-25T17:00:00Z");
+    expect(digest()).toBeDefined();
+  });
+
   it("posts once, even when the tick fires twice", async () => {
     const { tick, posts } = setup();
     await tick("2026-11-16T09:00:00Z");

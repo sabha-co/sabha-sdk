@@ -118,11 +118,15 @@ export function instantAt(localDate: string, at: string, timezone: string): numb
 
 /** Whether a schedule fires at this tick, and the local date of the run when it does. */
 export function due<Env extends SabhaEnv>(spec: ScheduleSpec<Env>, instant: number, env: Env): string | undefined {
-  const local = localTime(instant, resolve(spec.timezone, env));
+  const timezone = resolve(spec.timezone, env);
+  const local = localTime(instant, timezone);
   const days = parseDays(resolve(spec.days ?? "mon-fri", env));
   const at = parseAt(resolve(spec.at, env));
-  const retryFor = Math.max(0, resolve(spec.retryFor ?? 0, env));
-  if (!days.has(local.weekday)) return undefined;
+  const retryFor = resolve(spec.retryFor ?? 0, env);
+  if (!Number.isFinite(retryFor) || retryFor < 0 || retryFor >= 1_440) throw new ConfigError(`schedule retryFor "${retryFor}" isn't a number of minutes under a day`);
   const late = local.minute - at;
-  return late >= 0 && late <= retryFor ? local.date : undefined;
+  if (late >= 0) return late <= retryFor && days.has(local.weekday) ? local.date : undefined;
+  // Past midnight, a run that began late yesterday may still be within its retryFor.
+  const yesterday = localTime(instant - (local.minute + 1) * 60_000, timezone);
+  return late + 1_440 <= retryFor && days.has(yesterday.weekday) ? yesterday.date : undefined;
 }
