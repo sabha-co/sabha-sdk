@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This is the standup template for the Sabha app kit. The kit's rules are in the kit's `AGENTS.md`; these are the template's own.
+This is the standup example for the Sabha app kit, a whole app to copy and deploy. The kit's rules are in the kit's `AGENTS.md`; these are the standup's own.
 
 - The bot keeps no storage. It finds today's prompt by reading the room (`findPrompt`), and the replies by reading the thread (`readUpdates`). Don't add a KV, D1 or Durable Object store for them.
 - Both schedules post with `stableId(runKey)` and use `retryFor: 10`. Keep both: together they make a missed tick recoverable and a repeated tick harmless.

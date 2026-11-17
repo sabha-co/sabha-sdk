@@ -15,7 +15,7 @@ export default createWorker(app);
 
 The kit verifies every delivery, answers inside Sabha's time limits, retries what's safe to retry, and never posts the same reply twice. It runs on Web standards (`fetch`, Web Crypto), so the core has no Node or Workers dependency.
 
-- **Starting from scratch?** Copy [`templates/standup`](templates/standup), a working standup bot you deploy with `wrangler deploy`.
+- **Starting from scratch?** Copy [`examples/standup`](examples/standup), a working standup bot you deploy with `wrangler deploy`.
 - **Coming from Slack's Bolt?** Read [Porting from Bolt](docs/porting-from-bolt.md).
 - **Writing with a coding agent?** Point it at [`AGENTS.md`](AGENTS.md).
 
@@ -97,7 +97,7 @@ The socket keeps a live connection, so the app shows online, needs no public URL
 
 ### The socket on Cloudflare
 
-1. Export the Durable Object beside the Worker, and declare it (the template's `wrangler.jsonc` does both):
+1. Export the Durable Object beside the Worker, and declare it (the standup's `wrangler.jsonc` does both):
 
    ```ts
    export default createWorker(app);
@@ -163,7 +163,7 @@ const response = await handleWebhook(app, await signedDelivery({ secret: env.SAB
 - `FakeSabha` is the API as a `fetch`: it keeps messages, threads and drafts, honours client message ids, pages listings, and records every call in `calls`.
 - `messageEvent`, `commandEvent`, `blockActionsEvent`, `reactionEvent` and `userEvent` build events with sensible defaults.
 
-The [examples](examples) and the [standup template](templates/standup) show tests for each kind of handler, including Workers tests with `@cloudflare/vitest-plugin`.
+The [examples](examples), the standup among them, show tests for each kind of handler, including Workers tests with `@cloudflare/vitest-plugin`.
 
 ## The API
 
@@ -173,15 +173,15 @@ Errors are `SabhaApiError` with `status`, `code` and, for a missing permission, 
 
 ## Security
 
-See the template's [security checklist](templates/standup/SECURITY.md). In short: the kit verifies every delivery and refuses one older than five minutes, and it keeps the key, the signing secret, `response_url`s and message text out of its logs and errors. Your handlers should do the same.
+See the standup's [security checklist](examples/standup/SECURITY.md). In short: the kit verifies every delivery and refuses one older than five minutes, and it keeps the key, the signing secret, `response_url`s and message text out of its logs and errors. Your handlers should do the same.
 
 ## This repo
 
 | Path | What it is |
 |---|---|
 | `packages/app-kit` | The kit: the core, plus the `/cloudflare`, `/node` and `/testing` subpaths. |
-| `templates/standup` | The standup bot, ready to deploy. |
 | `examples` | One short, tested file per kind of handler. |
+| `examples/standup` | The standup bot, ready to copy and deploy. |
 
 ```bash
 pnpm install && pnpm typecheck && pnpm build && pnpm test

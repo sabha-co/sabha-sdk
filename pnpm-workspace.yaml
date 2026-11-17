@@ -1,7 +1,7 @@
 packages:
   - packages/*
-  - templates/*
   - examples
+  - examples/standup
 allowBuilds:
   esbuild: true
   workerd: true
