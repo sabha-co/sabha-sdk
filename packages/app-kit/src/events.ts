@@ -103,11 +103,13 @@ export function parseEvent(raw: unknown): SabhaEvent {
 }
 
 /**
- * The identity of an event across redeliveries. Sabha mints a new delivery id on every retry
- * and message and reaction events carry no id of their own, so the key is built from what the
- * event is about. An edit is keyed by its time, so each edit is its own event.
+ * The identity of an event across redeliveries. Every event carries Sabha's own `id`, the same
+ * on the socket, the webhook and each retry. A Sabha too old to send one on message, reaction
+ * and user events gets a key built from what the event is about instead.
  */
 export function eventKey(event: SabhaEvent): string | undefined {
+  const id = (event as { id?: unknown }).id;
+  if (typeof id === "string" && id !== "") return `${event.event}:${id}`;
   switch (event.event) {
     case "message_created":
       return `message:${event.message.id}`;

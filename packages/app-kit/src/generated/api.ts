@@ -753,6 +753,8 @@ export interface components {
         MessageEvent: {
             /** @enum {unknown} */
             event: "message_created" | "message_updated" | "message_deleted";
+            /** @description The event's id: the same on the WebSocket, the webhook and every retry. Deduplicate on it. */
+            id: string;
             /** @description On message_created only: whether it names the app itself, not just @everyone. */
             mentions_app?: boolean;
             message: components["schemas"]["EventMessage"];
@@ -779,6 +781,8 @@ export interface components {
         ReactionEvent: {
             /** @enum {unknown} */
             event: "reaction_created" | "reaction_deleted";
+            /** @description The event's id: the same on the WebSocket, the webhook and every retry. Deduplicate on it. */
+            id: string;
             message: components["schemas"]["EventMessage"];
             reaction: {
                 body: string;
@@ -815,6 +819,8 @@ export interface components {
         UserEvent: {
             /** @enum {unknown} */
             event: "user_created" | "user_deleted";
+            /** @description The event's id: the same on the WebSocket, the webhook and every retry. Deduplicate on it. */
+            id: string;
             user: components["schemas"]["EventUser"];
         };
         UserProfile: {

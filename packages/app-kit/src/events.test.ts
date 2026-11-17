@@ -24,13 +24,20 @@ describe("events", () => {
     expect(placeOf({ type: "Closed" })).toBe("room");
   });
 
-  it("keys each event by what it's about", () => {
-    expect(eventKey(messageEvent())).toBe("message:501");
-    expect(eventKey(messageEvent({ event: "message_updated" }))).toBe("edit:501:2026-11-16T09:00:00Z");
-    expect(eventKey(reactionEvent())).toBe("react:77");
+  it("keys each event by Sabha's id, so two edits in one second stay two events", () => {
+    const edit = (id: string) => eventKey({ ...messageEvent({ event: "message_updated" }), id });
+    expect(edit("e1")).toBe("message_updated:e1");
+    expect(edit("e2")).not.toBe(edit("e1"));
     expect(eventKey(commandEvent())).toBe("command:cmd-1");
-    expect(eventKey(blockActionsEvent())).toBe("action:act-1");
-    expect(eventKey(userEvent())).toBe("user_created:7");
+    expect(eventKey(blockActionsEvent())).toBe("block_actions:act-1");
+  });
+
+  it("keys an event from an older Sabha, without an id, by what it's about", () => {
+    const bare = <T extends { id?: string }>(event: T) => ({ ...event, id: undefined }) as unknown as Parameters<typeof eventKey>[0];
+    expect(eventKey(bare(messageEvent()))).toBe("message:501");
+    expect(eventKey(bare(messageEvent({ event: "message_updated" })))).toBe("edit:501:2026-11-16T09:00:00Z");
+    expect(eventKey(bare(reactionEvent()))).toBe("react:77");
+    expect(eventKey(bare(userEvent()))).toBe("user_created:7");
   });
 
   it("refuses payloads missing what the kit relies on, and passes unknown events through", () => {

@@ -5,8 +5,12 @@ const user = { id: 7, name: "Asha", role: "member", url: "https://sabha.test/use
 
 export function messageEvent(overrides: Omit<Partial<MessageEvent>, "message"> & { message?: Partial<MessageEvent["message"]> } = {}): MessageEvent {
   const { message, ...rest } = overrides;
+  const event = rest.event ?? "message_created";
+  const messageId = message?.id ?? 501;
   return {
-    event: "message_created",
+    event,
+    // Sabha's ids are UUIDs; a readable one per message and edit is enough for tests.
+    id: `evt-${event}-${messageId}-${message?.updated_at ?? ""}`,
     mentions_app: true,
     room,
     user,
@@ -29,7 +33,9 @@ export function messageEvent(overrides: Omit<Partial<MessageEvent>, "message"> &
 
 export function reactionEvent(overrides: Partial<ReactionEvent> = {}): ReactionEvent {
   const base = messageEvent();
-  return { event: "reaction_created", room, user, message: base.message, reaction: { id: 77, body: "👍" }, ...overrides };
+  const event = overrides.event ?? "reaction_created";
+  const reaction = overrides.reaction ?? { id: 77, body: "👍" };
+  return { event, id: `evt-${event}-${reaction.id}`, room, user, message: base.message, reaction, ...overrides };
 }
 
 export function commandEvent(overrides: Partial<CommandEvent> = {}): CommandEvent {
@@ -61,5 +67,6 @@ export function blockActionsEvent(overrides: Partial<BlockActionsEvent> = {}): B
 }
 
 export function userEvent(overrides: Partial<UserEvent> = {}): UserEvent {
-  return { event: "user_created", user, ...overrides };
+  const event = overrides.event ?? "user_created";
+  return { event, id: `evt-${event}-${(overrides.user ?? user).id}`, user, ...overrides };
 }

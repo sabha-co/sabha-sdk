@@ -1273,9 +1273,10 @@ components:
 
     MessageEvent:
       type: object
-      required: [ event, user, room, message ]
+      required: [ event, id, user, room, message ]
       properties:
         event: { enum: [ message_created, message_updated, message_deleted ] }
+        id: { type: string, description: "The event's id: the same on the WebSocket, the webhook and every retry. Deduplicate on it." }
         user: { $ref: "#/components/schemas/EventUser" }
         room: { $ref: "#/components/schemas/EventRoom" }
         message: { $ref: "#/components/schemas/EventMessage" }
@@ -1283,9 +1284,10 @@ components:
 
     ReactionEvent:
       type: object
-      required: [ event, user, room, message, reaction ]
+      required: [ event, id, user, room, message, reaction ]
       properties:
         event: { enum: [ reaction_created, reaction_deleted ] }
+        id: { type: string, description: "The event's id: the same on the WebSocket, the webhook and every retry. Deduplicate on it." }
         user: { $ref: "#/components/schemas/EventUser" }
         room: { $ref: "#/components/schemas/EventRoom" }
         message: { $ref: "#/components/schemas/EventMessage" }
@@ -1298,9 +1300,10 @@ components:
 
     UserEvent:
       type: object
-      required: [ event, user ]
+      required: [ event, id, user ]
       properties:
         event: { enum: [ user_created, user_deleted ] }
+        id: { type: string, description: "The event's id: the same on the WebSocket, the webhook and every retry. Deduplicate on it." }
         user: { $ref: "#/components/schemas/EventUser" }
 
     CommandEvent:
