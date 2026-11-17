@@ -73,7 +73,7 @@ Sabha waits a limited time for an answer. The kit answers inside it and keeps ev
 
 Each handler's value is sent as soon as that handler finishes; a slow handler never holds back a quick one.
 
-For messages and reactions the kit reads the key's permissions from `GET /me`, again every few minutes. With `post`, Sabha waits up to 300 s and posts a string the handler returns as the reply, with no API call. Without it, Sabha waits only 30 s and sends the event again, so the kit answers at once. Objects always go through `say`, so they render the same however quick the handler was. `new App({ inlineReplies: false })` (or `true`) overrides the check.
+Each delivery says how long Sabha waits for it, in `X-Sabha-Timeout`, and the kit ends every window in time for its answer to arrive. The same header says whether Sabha will post a reply: it waits 300 s for a message or reaction it will post a string reply to, with no API call, and 30 s otherwise, when the kit answers at once. A Sabha too old to send the header is judged by the key's permissions instead, read from `GET /me` every few minutes: with `post`, replies go inline. Objects always go through `say`, so they render the same however quick the handler was. `new App({ inlineReplies: false })` (or `true`) overrides the check.
 
 On Cloudflare `waitUntil` allows 30 s after the answer. Past that, see [Long work](#long-work).
 

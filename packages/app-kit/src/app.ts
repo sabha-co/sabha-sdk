@@ -72,6 +72,16 @@ const PROFILE_FOR_MS = 5 * 60_000;
 
 type Profile = { id: number; permissions?: string[] };
 
+/** How long Sabha waits for a delivery it won't post a reply to. */
+const ACCEPT_WAIT_MS = 30_000;
+/** Time left for the answer to travel back to Sabha. */
+const ANSWER_MARGIN_MS = 1_500;
+
+/** A window, shortened to end before Sabha stops waiting, when it said how long it waits. */
+function capped(window: number, answerBy: number | undefined): number {
+  return answerBy === undefined ? window : Math.max(0, Math.min(window, answerBy - ANSWER_MARGIN_MS - Date.now()));
+}
+
 /**
  * A Sabha app: one set of handlers, run the same over webhooks or the socket.
  *
@@ -205,7 +215,7 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
    * - Any other event waits for its handlers within the accept window, so a `RetryLater`
    *   can ask Sabha to send it again.
    */
-  async dispatch(event: SabhaEvent, runtime: Runtime<Env>, options: { inline: boolean; claimed?: boolean }): Promise<Answer | undefined> {
+  async dispatch(event: SabhaEvent, runtime: Runtime<Env>, options: { inline: boolean; claimed?: boolean; answerBy?: number }): Promise<Answer | undefined> {
     const key = eventKey(event);
     if (key && !options.claimed && !this.seen.claim(key)) {
       runtime.logger.info("skipped a repeated event", { event: event.event, key });
@@ -225,7 +235,7 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
       });
 
     if (event.event !== "command" && !REPLY_EVENTS.has(event.event)) {
-      const outcomes = options.inline ? await within(settledAll, this.options.acceptWindowMs) : await settledAll;
+      const outcomes = options.inline ? await within(settledAll, capped(this.options.acceptWindowMs, options.answerBy)) : await settledAll;
       if (outcomes !== "timeout" && outcomes.some((outcome) => !outcome.ok && outcome.error instanceof RetryLater) && options.inline && !UNRETRIED_EVENTS.has(event.event)) {
         if (key) this.seen.release(key);
         runtime.logger.info("a handler asked Sabha to retry", { event: event.event, key });
@@ -235,11 +245,12 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
       return options.inline ? { status: 200, text: "" } : undefined;
     }
 
-    const replies = options.inline && REPLY_EVENTS.has(event.event) && (await this.repliesInline(runtime));
+    const replies = options.inline && REPLY_EVENTS.has(event.event) && (await this.repliesInline(runtime, options.answerBy));
     const window = event.event === "command" ? this.options.commandWindowMs : replies ? this.options.replyWindowMs : undefined;
+    const capWindow = window === undefined ? undefined : capped(window, options.answerBy);
     let index = -1;
-    if (window !== undefined) {
-      const picked = await within(this.firstQuick(runs, event, replies), window);
+    if (capWindow !== undefined) {
+      const picked = await within(this.firstQuick(runs, event, replies), capWindow);
       if (picked !== "timeout") index = picked;
     }
     const value = index >= 0 ? (runs[index] ? ((await runs[index]) as { value: HandlerResult }).value : undefined) : undefined;
@@ -295,9 +306,14 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
 
   // Internals --------------------------------------------------------------------
 
-  /** Whether Sabha will post an inline reply for this app: it will when the key holds `post`. */
-  private async repliesInline(runtime: Runtime<Env>): Promise<boolean> {
+  /**
+   * Whether Sabha will post an inline reply to this delivery. Its wait says so: a delivery it
+   * will post a reply to waits longer than one it only hands over. Without that, it will when
+   * the key holds `post`.
+   */
+  private async repliesInline(runtime: Runtime<Env>, answerBy: number | undefined): Promise<boolean> {
     if (this.options.inlineReplies !== undefined) return this.options.inlineReplies;
+    if (answerBy !== undefined) return answerBy - Date.now() > ACCEPT_WAIT_MS;
     return (await this.profileOf(runtime))?.permissions?.includes("post") ?? false;
   }
 

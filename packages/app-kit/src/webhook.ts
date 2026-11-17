@@ -14,6 +14,16 @@ export interface WebhookOptions<Env extends SabhaEnv> {
   now?: number;
 }
 
+/** Sabha never waits longer than this, so a larger header (it isn't signed) is ignored. */
+const MAX_WAIT_SECONDS = 300;
+
+/** How long Sabha waits for this delivery's answer, from its X-Sabha-Timeout header. */
+function waitOf(request: Request): number | undefined {
+  const value = request.headers.get("X-Sabha-Timeout");
+  if (value === null || !/^\d+$/.test(value)) return undefined;
+  return Math.min(Number(value), MAX_WAIT_SECONDS) * 1000;
+}
+
 const text = (status: number, body = "") => new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
 
 /**
@@ -23,6 +33,7 @@ const text = (status: number, body = "") => new Response(body, { status, headers
  */
 export async function handleWebhook<Env extends SabhaEnv>(app: App<Env>, request: Request, options: WebhookOptions<Env>): Promise<Response> {
   const { env } = options;
+  const receivedAt = Date.now();
   if (!env.SABHA_SIGNING_SECRET) {
     app.logger.error("SABHA_SIGNING_SECRET isn't set, so no delivery can be checked");
     return text(500, "The app's signing secret isn't set.");
@@ -59,7 +70,8 @@ export async function handleWebhook<Env extends SabhaEnv>(app: App<Env>, request
     return text(error instanceof ConfigError ? 500 : 200);
   }
 
-  const answer = await app.dispatch(event, runtime, { inline: true });
+  const wait = waitOf(request);
+  const answer = await app.dispatch(event, runtime, { inline: true, ...(wait === undefined ? {} : { answerBy: receivedAt + wait }) });
   return toResponse(answer);
 }
 

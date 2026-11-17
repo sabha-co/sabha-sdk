@@ -115,7 +115,7 @@ export class FakeSabha {
       const message = this.store({
         room_id: parentId ? this.threadRoomOf(parentId) : roomId,
         body: String(body?.body ?? body?.text ?? ""),
-        creator: me!,
+        creator: { id: me!.id, name: me!.name },
         created_at: new Date(this.tick()).toISOString(),
         ...(parentId ? { parent_message_id: parentId } : {}),
         ...(clientMessageId ? { client_message_id: clientMessageId } : {}),
@@ -177,7 +177,7 @@ export class FakeSabha {
       id: message.id,
       room_id: message.room_id,
       body: { plain: message.body, html: message.body, markdown: message.body },
-      creator: message.creator,
+      creator: { ...message.creator, role: [...this.apps.values()].some((app) => app.id === message.creator.id) ? "bot" : "member" },
       created_at: message.created_at,
       replies,
       thread: message.parent_message_id ? { id: message.room_id, parent_message_id: message.parent_message_id, parent_room_id: 0 } : null,

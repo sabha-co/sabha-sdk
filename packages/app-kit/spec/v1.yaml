@@ -1070,6 +1070,13 @@ components:
           - { name: X-Sabha-Timestamp, in: header, required: true, schema: { type: string } }
           - { name: X-Sabha-Event, in: header, required: true, schema: { type: string } }
           - { name: X-Sabha-Delivery, in: header, required: true, schema: { type: string } }
+          - name: X-Sabha-Timeout
+            in: header
+            required: true
+            description: >-
+              Whole seconds Sabha waits for the answer: 300 for a message_created or reaction_created it will post a
+              reply to, what's left of 15 s for a command, 30 for anything else.
+            schema: { type: string }
         requestBody:
           content: { application/json: { schema: { $ref: "#/components/schemas/MessageEvent" } } }
         responses: &event_responses
@@ -1124,10 +1131,11 @@ components:
 
     UserRef:
       type: object
-      required: [ id, name ]
+      required: [ id, name, role ]
       properties:
         id: { type: integer }
         name: { type: string }
+        role: { type: string, description: "member, moderator, administrator or bot. Branch on it to tell people from apps." }
 
     User:
       type: object

@@ -831,6 +831,8 @@ export interface components {
         UserRef: {
             id: number;
             name: string;
+            /** @description member, moderator, administrator or bot. Branch on it to tell people from apps. */
+            role: string;
         };
     };
     responses: {
@@ -1008,6 +1010,8 @@ export interface components {
                         "X-Sabha-Delivery": string;
                         "X-Sabha-Event": string;
                         "X-Sabha-Signature": string;
+                        /** @description Whole seconds Sabha waits for the answer: 300 for a message_created or reaction_created it will post a reply to, what's left of 15 s for a command, 30 for anything else. */
+                        "X-Sabha-Timeout": string;
                         "X-Sabha-Timestamp": string;
                     };
                     path?: never;
@@ -1051,6 +1055,8 @@ export interface components {
                         "X-Sabha-Delivery": string;
                         "X-Sabha-Event": string;
                         "X-Sabha-Signature": string;
+                        /** @description Whole seconds Sabha waits for the answer: 300 for a message_created or reaction_created it will post a reply to, what's left of 15 s for a command, 30 for anything else. */
+                        "X-Sabha-Timeout": string;
                         "X-Sabha-Timestamp": string;
                     };
                     path?: never;
@@ -1094,6 +1100,8 @@ export interface components {
                         "X-Sabha-Delivery": string;
                         "X-Sabha-Event": string;
                         "X-Sabha-Signature": string;
+                        /** @description Whole seconds Sabha waits for the answer: 300 for a message_created or reaction_created it will post a reply to, what's left of 15 s for a command, 30 for anything else. */
+                        "X-Sabha-Timeout": string;
                         "X-Sabha-Timestamp": string;
                     };
                     path?: never;
@@ -1137,6 +1145,8 @@ export interface components {
                         "X-Sabha-Delivery": string;
                         "X-Sabha-Event": string;
                         "X-Sabha-Signature": string;
+                        /** @description Whole seconds Sabha waits for the answer: 300 for a message_created or reaction_created it will post a reply to, what's left of 15 s for a command, 30 for anything else. */
+                        "X-Sabha-Timeout": string;
                         "X-Sabha-Timestamp": string;
                     };
                     path?: never;
@@ -1180,6 +1190,8 @@ export interface components {
                         "X-Sabha-Delivery": string;
                         "X-Sabha-Event": string;
                         "X-Sabha-Signature": string;
+                        /** @description Whole seconds Sabha waits for the answer: 300 for a message_created or reaction_created it will post a reply to, what's left of 15 s for a command, 30 for anything else. */
+                        "X-Sabha-Timeout": string;
                         "X-Sabha-Timestamp": string;
                     };
                     path?: never;

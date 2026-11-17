@@ -177,6 +177,29 @@ describe("handleWebhook: answers", () => {
     expect(finished).toBe(true);
   });
 
+  it("follows the delivery's X-Sabha-Timeout over the key's permissions: a 30 s wait means no inline reply", async () => {
+    const { app, deliver, sabha, settle } = setup();
+    app.mention(() => "On it");
+    expect((await deliver(messageEvent({ message: { id: 51 } }), { timeout: 30 })).body).toBe("");
+    await settle();
+    expect(posts(sabha)).toHaveLength(1);
+    expect((await deliver(messageEvent({ message: { id: 52 } }), { timeout: 300 })).body).toBe("On it");
+  });
+
+  it("ends a command's window before Sabha stops waiting, when X-Sabha-Timeout says it's nearly out", async () => {
+    const { app, deliver, sabha, settle } = setup();
+    app.command("/ticket", async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      return "Filed";
+    });
+    const started = Date.now();
+    const result = await deliver(commandEvent({ id: "cmd-late" }), { timeout: 2 });
+    expect(Date.now() - started).toBeLessThan(900);
+    expect(result.body).toBe("");
+    await settle();
+    expect(sabha.calls.find((call) => call.path === "/api/v1/interaction_responses")?.body).toEqual({ text: "Filed" });
+  });
+
   it("reads the key's permissions again after a few minutes, so an admin's change reaches it", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     const { app, deliver, sabha, settle } = setup();

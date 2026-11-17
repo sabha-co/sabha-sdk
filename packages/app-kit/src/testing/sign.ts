@@ -11,6 +11,8 @@ export async function signedDelivery(params: {
   url?: string;
   at?: number;
   deliveryId?: string;
+  /** X-Sabha-Timeout, in seconds: 300 for a reply Sabha will post, 30 otherwise, what's left of 15 for a command. */
+  timeout?: number;
 }): Promise<Request> {
   const body = JSON.stringify(params.payload);
   const timestamp = Math.floor((params.at ?? Date.now()) / 1000);
@@ -23,6 +25,7 @@ export async function signedDelivery(params: {
       "X-Sabha-Delivery": params.deliveryId ?? crypto.randomUUID(),
       "X-Sabha-Timestamp": String(timestamp),
       "X-Sabha-Signature": await sign(params.secret, timestamp, body),
+      ...(params.timeout === undefined ? {} : { "X-Sabha-Timeout": String(params.timeout) }),
     },
   });
 }
