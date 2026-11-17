@@ -11,6 +11,7 @@ export interface FakeMessage {
   deleted?: boolean;
   /** The thread room under this message, once it has replies. */
   thread_room_id?: number;
+  reactions?: { id: number; content: string; by: number }[];
 }
 
 export interface FakeCall {
@@ -84,7 +85,8 @@ export class FakeSabha {
     const url = new URL(input);
     const method = (init.method ?? "GET").toUpperCase();
     const headers = new Headers(init.headers);
-    const body = typeof init.body === "string" ? safeJson(init.body) : init.body ?? undefined;
+    const raw = typeof init.body === "string" ? init.body : undefined;
+    const body = raw === undefined ? init.body ?? undefined : safeJson(raw);
     this.calls.push({ method, path: url.pathname, query: Object.fromEntries(url.searchParams), body, authorization: headers.get("Authorization") });
 
     const scripted = this.scripted.findIndex((entry) => entry.method === method && entry.path.test(url.pathname));
@@ -92,10 +94,10 @@ export class FakeSabha {
 
     const key = headers.get("Authorization")?.replace(/^Bearer /, "");
     const me = key ? this.apps.get(key) : undefined;
-    return this.answer(method, url, body as Record<string, unknown> | undefined, me);
+    return this.answer(method, url, body as Record<string, unknown> | undefined, raw, me);
   };
 
-  private answer(method: string, url: URL, body: Record<string, unknown> | undefined, me: { id: number; name: string } | undefined): Response {
+  private answer(method: string, url: URL, body: Record<string, unknown> | undefined, raw: string | undefined, me: { id: number; name: string } | undefined): Response {
     const path = url.pathname;
     let match: RegExpExecArray | null;
 
@@ -132,6 +134,18 @@ export class FakeSabha {
       const page = all.slice(start, start + limit);
       const hasMore = start + limit < all.length;
       return Response.json({ results: page.map((message) => this.render(message)), has_more: hasMore, next_cursor: hasMore ? String(page.at(-1)!.id) : null });
+    }
+
+    // Sabha reads the whole body as the emoji, as it does for a text/plain reaction.
+    if (method === "POST" && (match = /^\/api\/v1\/messages\/(\d+)\/reactions$/.exec(path))) {
+      const message = this.messages.find((candidate) => candidate.id === Number(match![1]) && !candidate.deleted);
+      if (!message) return error(404, "not_found");
+      const content = (raw ?? "").trim();
+      message.reactions ??= [];
+      if (message.reactions.some((reaction) => reaction.content === content && reaction.by === me!.id)) return error(422, "already_reacted", "The app has already reacted with this");
+      const reaction = { id: this.nextId++, content, by: me!.id };
+      message.reactions.push(reaction);
+      return Response.json({ id: reaction.id, content }, { status: 201 });
     }
 
     if ((match = /^\/api\/v1\/messages\/(\d+)$/.exec(path))) {

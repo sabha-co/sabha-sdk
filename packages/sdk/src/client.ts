@@ -223,7 +223,7 @@ export class SabhaClient {
   }
 
   react(messageId: number, emoji: string): Promise<{ id: number; content: string }> {
-    return this.call("POST", `/api/v1/messages/${messageId}/reactions`, { json: { body: emoji } });
+    return this.call("POST", `/api/v1/messages/${messageId}/reactions`, { text: emoji });
   }
 
   unreact(messageId: number, reactionId: number): Promise<unknown> {
@@ -372,6 +372,9 @@ export class SabhaClient {
       if (options.json !== undefined) {
         headers["Content-Type"] = "application/json";
         init.body = JSON.stringify(options.json);
+      } else if (options.text !== undefined) {
+        headers["Content-Type"] = "text/plain; charset=utf-8";
+        init.body = options.text;
       } else if (options.form) {
         init.body = options.form;
       }
@@ -420,6 +423,8 @@ export class SabhaClient {
 
 export interface RequestOptions {
   json?: unknown;
+  /** Sent as `text/plain`, for an endpoint that reads its body as is, such as a reaction's emoji. */
+  text?: string;
   form?: FormData;
   query?: Record<string, unknown>;
   headers?: Record<string, string>;
