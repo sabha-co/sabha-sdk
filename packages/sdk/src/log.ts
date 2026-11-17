@@ -1,5 +1,5 @@
 /**
- * The kit's logger. Fields are for ids, statuses and codes only: never a key, a secret, a
+ * The SDK's logger. Fields are for ids, statuses and codes only: never a key, a secret, a
  * response_url or message text, because Workers logs are readable by everyone on the account.
  */
 export type LogFields = Record<string, string | number | boolean | undefined | null>;

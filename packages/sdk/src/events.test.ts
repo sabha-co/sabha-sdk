@@ -40,7 +40,7 @@ describe("events", () => {
     expect(eventKey(bare(userEvent()))).toBe("user_created:7");
   });
 
-  it("refuses payloads missing what the kit relies on, and passes unknown events through", () => {
+  it("refuses payloads missing what the SDK relies on, and passes unknown events through", () => {
     expect(() => parseEvent({ event: "message_created", room: { id: 1 } })).toThrow(EventShapeError);
     expect(() => parseEvent({ event: "command", id: "x" })).toThrow(EventShapeError);
     expect(() => parseEvent("nope")).toThrow(EventShapeError);

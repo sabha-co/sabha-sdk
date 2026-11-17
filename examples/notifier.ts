@@ -1,6 +1,6 @@
 // A notifier: each weekday at 08:30 it fetches a summary and posts it in one room. The stable
 // id makes a repeated tick return the first post instead of posting again.
-import { App, type SabhaEnv } from "@sabha-co/app-kit";
+import { App, type SabhaEnv } from "@sabha-co/sdk";
 
 type Env = SabhaEnv & { ROOM_ID: string; FEED_URL: string; TIMEZONE: string };
 

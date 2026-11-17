@@ -1,10 +1,10 @@
 # Porting from Bolt
 
-The kit is shaped like Slack's [Bolt](https://tools.slack.dev/bolt-js/): an `App`, listeners by kind, a context with `say` and `respond`. Porting is a rewrite of each listener's first few lines, not of its logic. Sabha's API takes Slack's message shapes (mrkdwn `text`, Block Kit `blocks`, `response_url` envelopes), so what a listener posts mostly carries over.
+The SDK is shaped like Slack's [Bolt](https://tools.slack.dev/bolt-js/): an `App`, listeners by kind, a context with `say` and `respond`. Porting is a rewrite of each listener's first few lines, not of its logic. Sabha's API takes Slack's message shapes (mrkdwn `text`, Block Kit `blocks`, `response_url` envelopes), so what a listener posts mostly carries over.
 
 ## Setup
 
-| Bolt | The kit |
+| Bolt | The SDK |
 |---|---|
 | `new App({ token, signingSecret })` | `new App()`, with `SABHA_API_KEY` and `SABHA_SIGNING_SECRET` in the environment |
 | `socketMode: true, appToken` | `TRANSPORT=socket`; the same key, no second token |
@@ -14,7 +14,7 @@ The kit is shaped like Slack's [Bolt](https://tools.slack.dev/bolt-js/): an `App
 
 ## Listeners
 
-| Bolt | The kit |
+| Bolt | The SDK |
 |---|---|
 | `app.event("app_mention", …)` | `app.mention(…)` |
 | `app.message("hello", …)` | `app.message(…)`, testing `message.body.plain` yourself |
@@ -28,10 +28,10 @@ The kit is shaped like Slack's [Bolt](https://tools.slack.dev/bolt-js/): an `App
 
 ## Inside a listener
 
-| Bolt | The kit |
+| Bolt | The SDK |
 |---|---|
 | `await ack()` | Nothing. Returning is the acknowledgement. |
-| `await ack({ text })` in a command | `return { text }` within 3 s. Later, the kit sends it to `response_url`. |
+| `await ack({ text })` in a command | `return { text }` within 3 s. Later, the SDK sends it to `response_url`. |
 | `await say("hi")` | `await say("hi")`, or `return "hi"` |
 | `await say({ text, thread_ts: message.ts })` | `await say({ text, thread: true })` |
 | `await respond({ replace_original: true, … })` | `await respond({ replace_original: true, … })` |

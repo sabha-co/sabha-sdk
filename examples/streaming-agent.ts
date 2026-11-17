@@ -1,7 +1,7 @@
 // An agent that streams: a status while it thinks, then a draft that fills in as the answer
 // arrives, then the finished reply in the draft's place. Drafts notify no one; the finished
 // post notifies once.
-import { App } from "@sabha-co/app-kit";
+import { App } from "@sabha-co/sdk";
 
 export const app = new App();
 

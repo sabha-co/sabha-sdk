@@ -1,6 +1,6 @@
 import { createExecutionContext, createScheduledController, env, waitOnExecutionContext } from "cloudflare:test";
-import { createWorker } from "@sabha-co/app-kit/cloudflare";
-import { FakeSabha } from "@sabha-co/app-kit/testing";
+import { createWorker } from "@sabha-co/sdk/cloudflare";
+import { FakeSabha } from "@sabha-co/sdk/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import { createStandup, type StandupEnv } from "../src/app.js";
 

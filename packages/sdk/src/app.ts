@@ -29,7 +29,7 @@ export interface AppOptions {
   commandWindowMs?: number;
   /**
    * How long a message or reaction handler may take to answer inline; 10 s by default. Sabha
-   * would wait 300 s, but it holds one of its few webhook workers for as long as the kit
+   * would wait 300 s, but it holds one of its few webhook workers for as long as the SDK
    * waits, so a slow handler would hold up other apps' deliveries. Past it, the reply is
    * posted with `say`. Raise it only for handlers that are always quick.
    */
@@ -470,7 +470,7 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
       client,
       logger: runtime.logger,
       transport: runtime.transport,
-      // Prefixed, so an app's own keys can never match the kit's ids for say and drafts.
+      // Prefixed, so an app's own keys can never match the SDK's ids for say and drafts.
       stableId: (stableKey: string) => stableId(env.SABHA_API_KEY, `app:${stableKey}`),
       say,
       status,

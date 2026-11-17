@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@sabha-co/app-kit": "workspace:*"
+    "@sabha-co/sdk": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "1.6.1",

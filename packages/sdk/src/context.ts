@@ -22,7 +22,7 @@ export interface SabhaEnv {
   TRANSPORT?: string;
 }
 
-/** What a host gives the kit for one event: where to call, and how to keep work alive. */
+/** What a host gives the SDK for one event: where to call, and how to keep work alive. */
 export interface Runtime<Env extends SabhaEnv = SabhaEnv> {
   env: Env;
   client: SabhaClient;

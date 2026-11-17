@@ -1,5 +1,5 @@
 {
-  "name": "@sabha-co/app-kit",
+  "name": "@sabha-co/sdk",
   "version": "0.1.0",
   "description": "Build apps on Sabha's apps API: one set of handlers over webhooks or the socket, with a Cloudflare host.",
   "type": "module",

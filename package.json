@@ -1,5 +1,5 @@
 {
-  "name": "sabha-app-kit-workspace",
+  "name": "sabha-sdk-workspace",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.10.1",

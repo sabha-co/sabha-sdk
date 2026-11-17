@@ -1,5 +1,5 @@
-import { handleWebhook, type App, type SabhaEnv } from "@sabha-co/app-kit";
-import { FakeSabha, blockActionsEvent, commandEvent, messageEvent, signedDelivery } from "@sabha-co/app-kit/testing";
+import { handleWebhook, type App, type SabhaEnv } from "@sabha-co/sdk";
+import { FakeSabha, blockActionsEvent, commandEvent, messageEvent, signedDelivery } from "@sabha-co/sdk/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { app as approvalCard } from "./approval-card.ts";
 import { app as command } from "./command.ts";

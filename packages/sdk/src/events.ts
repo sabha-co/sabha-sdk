@@ -69,7 +69,7 @@ export class EventShapeError extends Error {
   }
 }
 
-/** Checks the fields the kit relies on. An unknown event name passes through, so a new Sabha event never breaks an app. */
+/** Checks the fields the SDK relies on. An unknown event name passes through, so a new Sabha event never breaks an app. */
 export function parseEvent(raw: unknown): SabhaEvent {
   if (!isRecord(raw) || typeof raw.event !== "string") throw new EventShapeError("missing event name");
   const has = (value: unknown, field: string) => isRecord(value) && value[field] !== undefined;

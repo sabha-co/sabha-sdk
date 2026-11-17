@@ -1,6 +1,6 @@
 // The digest: today's prompt, the replies in its thread, and the text that sums them up. Every
 // reply is quoted so it can't notify anyone or turn into a link when the bot posts it.
-import { SabhaApiError, type Message, type SabhaClient } from "@sabha-co/app-kit";
+import { SabhaApiError, type Message, type SabhaClient } from "@sabha-co/sdk";
 
 export interface Update {
   name: string;

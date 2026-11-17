@@ -1,7 +1,7 @@
 // Runs an app in a long-lived Node process (Node 24+) over the socket, so it needs no public URL
 // and shows online. Settings come from the environment:
 //   SABHA_BASE_URL=https://team.sabha.co SABHA_API_KEY=sabha_app_… node run-node.ts
-import { runSocket } from "@sabha-co/app-kit/node";
+import { runSocket } from "@sabha-co/sdk/node";
 import { app } from "./mention-reply.ts";
 
 const { SABHA_BASE_URL, SABHA_API_KEY, SABHA_SOCKET_URL } = process.env;

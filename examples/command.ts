@@ -1,6 +1,6 @@
 // A slash command. Return within 3 seconds and the answer goes straight back to the member;
-// take longer and the kit sends it to the command's response_url instead.
-import { App } from "@sabha-co/app-kit";
+// take longer and the SDK sends it to the command's response_url instead.
+import { App } from "@sabha-co/sdk";
 
 export const app = new App();
 

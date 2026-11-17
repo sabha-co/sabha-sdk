@@ -1,6 +1,6 @@
 // An approval card: /deploy posts Approve and Reject buttons; only people listed in APPROVERS
 // (comma-separated user ids) may press them, and the card then says who decided.
-import { App, type SabhaEnv } from "@sabha-co/app-kit";
+import { App, type SabhaEnv } from "@sabha-co/sdk";
 
 export const app = new App<SabhaEnv & { APPROVERS: string }>();
 

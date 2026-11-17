@@ -1,4 +1,4 @@
-import { createSocketHost, createWorker } from "@sabha-co/app-kit/cloudflare";
+import { createSocketHost, createWorker } from "@sabha-co/sdk/cloudflare";
 import { createStandup } from "./app.js";
 
 const app = createStandup();

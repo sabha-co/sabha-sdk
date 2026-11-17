@@ -1,5 +1,5 @@
 {
-  "name": "sabha-app-kit-examples",
+  "name": "sabha-sdk-examples",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,7 +7,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@sabha-co/app-kit": "workspace:*"
+    "@sabha-co/sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

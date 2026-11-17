@@ -1,7 +1,7 @@
 // A standup in a thread: each scheduled morning the bot asks in one room, members reply in the
 // prompt's thread, and later the bot posts a digest of who said what. Sabha is its only store.
-import { App, ConfigError, instantAt, type AppOptions } from "@sabha-co/app-kit";
-import type { CloudflareEnv } from "@sabha-co/app-kit/cloudflare";
+import { App, ConfigError, instantAt, type AppOptions } from "@sabha-co/sdk";
+import type { CloudflareEnv } from "@sabha-co/sdk/cloudflare";
 import { digestHtml, findPrompt, readUpdates } from "./digest.js";
 
 export interface StandupEnv extends CloudflareEnv {

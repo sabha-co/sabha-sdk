@@ -1,10 +1,10 @@
-# Sabha app kit
+# Sabha SDK
 
 Build apps for [Sabha](https://sabha.co) in TypeScript: bots, slash commands, buttons, scheduled posts, agents. Write handlers once; run them on Cloudflare Workers or Node, over webhooks or the socket.
 
 ```ts
-import { App } from "@sabha-co/app-kit";
-import { createWorker } from "@sabha-co/app-kit/cloudflare";
+import { App } from "@sabha-co/sdk";
+import { createWorker } from "@sabha-co/sdk/cloudflare";
 
 const app = new App();
 
@@ -13,7 +13,7 @@ app.mention(({ user }) => `Hi ${user.name}!`);
 export default createWorker(app);
 ```
 
-The kit verifies every delivery, answers inside Sabha's time limits, retries what's safe to retry, and never posts the same reply twice. It runs on Web standards (`fetch`, Web Crypto), so the core has no Node or Workers dependency.
+The SDK verifies every delivery, answers inside Sabha's time limits, retries what's safe to retry, and never posts the same reply twice. It runs on Web standards (`fetch`, Web Crypto), so the core has no Node or Workers dependency.
 
 - **Starting from scratch?** Copy [`examples/standup`](examples/standup), a working standup bot you deploy with `wrangler deploy`.
 - **Coming from Slack's Bolt?** Read [Porting from Bolt](docs/porting-from-bolt.md).
@@ -21,13 +21,13 @@ The kit verifies every delivery, answers inside Sabha's time limits, retries wha
 
 ## Install
 
-The kit is private for now. Depend on a commit of this repo:
+The SDK is private for now. Depend on a commit of this repo:
 
 ```bash
-pnpm add "github:sabha-co/sabha-app-kit#<commit>&path:/packages/app-kit"
+pnpm add "github:sabha-co/sabha-sdk#<commit>&path:/packages/sdk"
 ```
 
-pnpm builds it on install; list `@sabha-co/app-kit` under `pnpm.onlyBuiltDependencies` so it may. Node 24 or later, or any Workers runtime.
+pnpm builds it on install; list `@sabha-co/sdk` under `pnpm.onlyBuiltDependencies` so it may. Node 24 or later, or any Workers runtime.
 
 ## Settings
 
@@ -63,9 +63,9 @@ Every handler's context has `event`, `user` (who did it), `env`, `client` (the w
 
 ## Answering in time
 
-Sabha waits a limited time for an answer. The kit answers inside it and keeps every handler running after the answer, through `waitUntil`.
+Sabha waits a limited time for an answer. The SDK answers inside it and keeps every handler running after the answer, through `waitUntil`.
 
-| Event | The kit answers Sabha | A returned value |
+| Event | The SDK answers Sabha | A returned value |
 |---|---|---|
 | `command` | with the first handler's value, if one returns within 3 s | after that, goes to `response_url` (Sabha waits 15 s from the member's command) |
 | a message or reaction | with the first string a handler returns within 10 s, when the key holds `post`; otherwise at once | Sabha posts that string as the reply; anything later, or anything else, is posted with `say` |
@@ -73,21 +73,21 @@ Sabha waits a limited time for an answer. The kit answers inside it and keeps ev
 
 Each handler's value is sent as soon as that handler finishes; a slow handler never holds back a quick one.
 
-Each delivery says how long Sabha waits for it, in `X-Sabha-Timeout`, and the kit ends every window in time for its answer to arrive. The same header says whether Sabha will post a reply: it waits 300 s for a message or reaction it will post a string reply to, with no API call, and 30 s otherwise, when the kit answers at once. The kit waits at most 10 s (`replyWindowMs`) for that string even so: Sabha ties up one of its few webhook workers for as long as the kit waits, and a slow handler there holds up every other app's deliveries. A Sabha too old to send the header is judged by the key's permissions instead, read from `GET /me` every few minutes: with `post`, replies go inline. Objects always go through `say`, so they render the same however quick the handler was. `new App({ inlineReplies: false })` (or `true`) overrides the check.
+Each delivery says how long Sabha waits for it, in `X-Sabha-Timeout`, and the SDK ends every window in time for its answer to arrive. The same header says whether Sabha will post a reply: it waits 300 s for a message or reaction it will post a string reply to, with no API call, and 30 s otherwise, when the SDK answers at once. The SDK waits at most 10 s (`replyWindowMs`) for that string even so: Sabha ties up one of its few webhook workers for as long as the SDK waits, and a slow handler there holds up every other app's deliveries. A Sabha too old to send the header is judged by the key's permissions instead, read from `GET /me` every few minutes: with `post`, replies go inline. Objects always go through `say`, so they render the same however quick the handler was. `new App({ inlineReplies: false })` (or `true`) overrides the check.
 
 On Cloudflare `waitUntil` allows 30 s after the answer. Past that, see [Long work](#long-work).
 
 ## Retrying
 
-Throw `RetryLater` to have Sabha send the event again. The kit answers `503`, and Sabha retries with backoff. Sabha retries `message_updated`, `message_deleted`, `reaction_deleted`, `block_actions`, `user_created` and `user_deleted`. It never retries `message_created`, `reaction_created` or `command`, so `RetryLater` there is logged and dropped: retry inside the handler instead.
+Throw `RetryLater` to have Sabha send the event again. The SDK answers `503`, and Sabha retries with backoff. Sabha retries `message_updated`, `message_deleted`, `reaction_deleted`, `block_actions`, `user_created` and `user_deleted`. It never retries `message_created`, `reaction_created` or `command`, so `RetryLater` there is logged and dropped: retry inside the handler instead.
 
-The kit drops an event it has already handled, by its key (`ctx.eventKey`), but only for as long as an isolate lives. For an effect outside Sabha that must happen once (charging a card, filing a ticket), key it on `ctx.eventKey` in your own store.
+The SDK drops an event it has already handled, by its key (`ctx.eventKey`), but only for as long as an isolate lives. For an effect outside Sabha that must happen once (charging a card, filing a ticket), key it on `ctx.eventKey` in your own store.
 
 ## Transports
 
 Webhooks are the default: Sabha POSTs each event, signed, to the app's URL. It's free on Cloudflare and needs nothing running between events.
 
-The socket keeps a live connection, so the app shows online, needs no public URL, and takes events in order with replay after a drop. Sabha sends every event to both the socket and the webhook; the kit drops the webhook copy while `TRANSPORT=socket`.
+The socket keeps a live connection, so the app shows online, needs no public URL, and takes events in order with replay after a drop. Sabha sends every event to both the socket and the webhook; the SDK drops the webhook copy while `TRANSPORT=socket`.
 
 | Host | Webhook | Socket |
 |---|---|---|
@@ -146,11 +146,11 @@ Run the app on your machine against a Sabha, over the socket, with no tunnel:
 
 ## Testing
 
-`@sabha-co/app-kit/testing` has what the kit's own tests use:
+`@sabha-co/sdk/testing` has what the SDK's own tests use:
 
 ```ts
-import { App, handleWebhook } from "@sabha-co/app-kit";
-import { FakeSabha, messageEvent, signedDelivery } from "@sabha-co/app-kit/testing";
+import { App, handleWebhook } from "@sabha-co/sdk";
+import { FakeSabha, messageEvent, signedDelivery } from "@sabha-co/sdk/testing";
 
 const sabha = new FakeSabha().app("sabha_app_test", { id: 99, name: "Helper" });
 const app = new App({ fetch: sabha.fetch });
@@ -173,13 +173,13 @@ Errors are `SabhaApiError` with `status`, `code` and, for a missing permission, 
 
 ## Security
 
-See the standup's [security checklist](examples/standup/SECURITY.md). In short: the kit verifies every delivery and refuses one older than five minutes, and it keeps the key, the signing secret, `response_url`s and message text out of its logs and errors. Your handlers should do the same.
+See the standup's [security checklist](examples/standup/SECURITY.md). In short: the SDK verifies every delivery and refuses one older than five minutes, and it keeps the key, the signing secret, `response_url`s and message text out of its logs and errors. Your handlers should do the same.
 
 ## This repo
 
 | Path | What it is |
 |---|---|
-| `packages/app-kit` | The kit: the core, plus the `/cloudflare`, `/node` and `/testing` subpaths. |
+| `packages/sdk` | The SDK: the core, plus the `/cloudflare`, `/node` and `/testing` subpaths. |
 | `examples` | One short, tested file per kind of handler. |
 | `examples/standup` | The standup bot, ready to copy and deploy. |
 
@@ -187,4 +187,4 @@ See the standup's [security checklist](examples/standup/SECURITY.md). In short: 
 pnpm install && pnpm typecheck && pnpm build && pnpm test
 ```
 
-`pnpm --filter @sabha-co/app-kit gen:types <path to Sabha's v1.yaml>` refreshes the vendored spec and the generated types.
+`pnpm --filter @sabha-co/sdk gen:types <path to Sabha's v1.yaml>` refreshes the vendored spec and the generated types.

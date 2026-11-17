@@ -1,5 +1,5 @@
 {
-  "name": "app-kit-test",
+  "name": "sdk-test",
   "main": "./worker.ts",
   "compatibility_date": "2026-11-01",
   "durable_objects": {

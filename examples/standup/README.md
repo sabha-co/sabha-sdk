@@ -10,7 +10,7 @@ You need a Cloudflare account, Node 24 and pnpm, and to be an admin in Sabha.
 
 1. **Make the app.** In Sabha, go to **Settings → Apps → New**. Name it (say, "Standup"), and give it **post** and **read_messages**. Copy its **key** and **signing secret**.
 2. **Add it to the room** the standup runs in, as you would a person. Note the room's id: the number after `/rooms/` in its address.
-3. **Set it up.** From a clone of the kit's repo, in this folder (copying the folder out on its own? Replace `workspace:*` in `package.json` with the dependency in the kit's README):
+3. **Set it up.** From a clone of the SDK's repo, in this folder (copying the folder out on its own? Replace `workspace:*` in `package.json` with the dependency in the SDK's README):
 
    ```bash
    pnpm install
