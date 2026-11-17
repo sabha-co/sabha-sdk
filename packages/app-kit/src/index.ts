@@ -32,3 +32,20 @@ export { SIGNATURE_TOLERANCE_SECONDS, sign, verify, type Verdict } from "./verif
 export { handleWebhook, type WebhookOptions } from "./webhook.js";
 export { SeenEvents } from "./dedupe.js";
 export type { components, operations, paths } from "./generated/api.js";
+export { socketApp, type SocketAppOptions } from "./cable/dispatch.js";
+export {
+  APP_EVENTS_IDENTIFIER,
+  CABLE_PROTOCOL,
+  CableClient,
+  CableRejectedError,
+  MemoryReplayStore,
+  advance,
+  backoffDelay,
+  type CableClientOptions,
+  type CableTimeouts,
+  type Connect,
+  type EventMeta,
+  type ReplayStore,
+  type StreamPosition,
+  type WebSocketLike,
+} from "./cable/socket.js";
