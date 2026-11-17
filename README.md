@@ -35,11 +35,11 @@ pnpm builds it on install; list `@sabha-co/sdk` under `pnpm.onlyBuiltDependencie
 |---|---|
 | `SABHA_BASE_URL` | Your Sabha's address, such as `https://team.sabha.co`, or `https://sabha.co/1000001` on Sabha's own hosting. |
 | `SABHA_API_KEY` | The app's key, from Settings → Apps. Keep it a secret. |
-| `SABHA_SIGNING_SECRET` | The app's signing secret, for webhooks. Keep it a secret. |
+| `SABHA_SIGNING_SECRET` | The app's signing secret, for webhooks. Sabha shows it once the app has a webhook URL. Keep it a secret. |
 | `TRANSPORT` | `webhook` (the default) or `socket`. |
 | `SABHA_SOCKET_URL` | Only when the socket isn't at `/cable` on the base URL, such as a local AnyCable. |
 
-An admin makes the app in **Settings → Apps → New**, picks its permissions (ask only for what it uses), sets its webhook URL to where the app runs, and adds it to the rooms it works in.
+An admin makes the app in **Settings → Apps → Add app**, picks its permissions (ask only for what it uses) and the rooms it works in, and sets its webhook URL to where the app runs.
 
 ## Handlers
 

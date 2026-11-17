@@ -8,17 +8,16 @@ export interface Update {
 }
 
 /**
- * Today's prompt: the app's own message in the room posted at or after `since`. Read, never
- * posted, so a prompt that didn't go out is never sent late. The earliest match wins, since a
- * digest from an earlier tick is newer than the prompt.
+ * The app's own posts in the room at or after `since`, oldest first: today's prompt, then its
+ * digest once that's out. Read, never posted, so a prompt that didn't go out is never sent late.
  */
-export async function findPrompt(client: SabhaClient, roomId: number, appId: number, since: number): Promise<Message | undefined> {
-  let prompt: Message | undefined;
+export async function todaysPosts(client: SabhaClient, roomId: number, appId: number, since: number): Promise<Message[]> {
+  const posts: Message[] = [];
   for await (const message of client.allMessages(roomId)) {
     if (Date.parse(message.created_at) < since) break;
-    if (message.creator.id === appId && !message.thread) prompt = message;
+    if (message.creator.id === appId && !message.thread) posts.unshift(message);
   }
-  return prompt;
+  return posts;
 }
 
 /** Each person's replies in the thread, in the order they first replied, leaving out the app's own. */

@@ -18,6 +18,8 @@
     "STANDUP_PROMPT_AT": "09:30",
     "STANDUP_DIGEST_AT": "16:00"
   },
-  "secrets": { "required": ["SABHA_API_KEY", "SABHA_SIGNING_SECRET"] },
+  // SABHA_SIGNING_SECRET isn't required to deploy: Sabha shows it only once the webhook URL,
+  // which the first deploy prints, is set. Until it is, the Worker refuses every delivery.
+  "secrets": { "required": ["SABHA_API_KEY"] },
   "observability": { "enabled": true }
 }

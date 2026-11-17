@@ -1,6 +1,6 @@
 # Standup
 
-A standup in a thread. Each scheduled morning the bot asks in one room; people reply in the prompt's thread; later it posts a digest with one line per person and a link to the thread.
+A standup in a thread. Each scheduled morning the bot asks in one room, saying when the digest comes; people reply in the prompt's thread, and it puts a ✅ on each reply; later it posts a digest with one line per person and a link to the thread.
 
 It keeps nothing of its own: the prompt and the replies live in Sabha. It runs on Cloudflare's free plan, and needs only the `post` and `read_messages` permissions.
 
@@ -8,8 +8,8 @@ It keeps nothing of its own: the prompt and the replies live in Sabha. It runs o
 
 You need a Cloudflare account, Node 24 and pnpm, and to be an admin in Sabha.
 
-1. **Make the app.** In Sabha, go to **Settings → Apps → New**. Name it (say, "Standup"), and give it **post** and **read_messages**. Copy its **key** and **signing secret**.
-2. **Add it to the room** the standup runs in, as you would a person. Note the room's id: the number after `/rooms/` in its address.
+1. **Make the app.** In Sabha, go to **Settings → Apps → Add app** and name it (say, "Standup"). Copy its **key** from the **API** tab now: Sabha shows it once.
+2. **Set its access.** On the app's **Access** tab, turn on only **Post and react** and **Read messages in its rooms**, and under **Rooms** keep only the room the standup runs in. Note the room's id: the number after `/rooms/` in its address.
 3. **Set it up.** From a clone of the SDK's repo, in this folder (copying the folder out on its own? Replace `workspace:*` in `package.json` with the dependency in the SDK's README):
 
    ```bash
@@ -22,12 +22,17 @@ You need a Cloudflare account, Node 24 and pnpm, and to be an admin in Sabha.
 
    ```bash
    pnpm wrangler login
-   pnpm wrangler secret put SABHA_API_KEY        # the key from step 1
-   pnpm wrangler secret put SABHA_SIGNING_SECRET # the signing secret
+   pnpm wrangler secret put SABHA_API_KEY   # the key from step 1
    pnpm run deploy
    ```
 
-5. **Point Sabha at it.** On the app's page in Sabha, set the webhook URL to the address `pnpm run deploy` printed (`https://sabha-standup.<you>.workers.dev`).
+5. **Point Sabha at it.** On the app's **Events** tab, set the webhook URL to the address `pnpm run deploy` printed (`https://sabha-standup.<you>.workers.dev`). Sabha then shows the app's **signing secret**. Set it straight away:
+
+   ```bash
+   pnpm wrangler secret put SABHA_SIGNING_SECRET
+   ```
+
+   Until it's set the Worker refuses every delivery, and Sabha suspends a webhook after five failed deliveries in a row. Schedules run without it.
 
 The prompt goes out at the next `STANDUP_PROMPT_AT` on a scheduled day. To see it now, set `STANDUP_PROMPT_AT` to a minute or two from now and deploy again.
 

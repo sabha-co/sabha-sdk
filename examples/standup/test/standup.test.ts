@@ -1,22 +1,29 @@
 import { createExecutionContext, createScheduledController, env, waitOnExecutionContext } from "cloudflare:test";
 import { createWorker } from "@sabha-co/sdk/cloudflare";
-import { FakeSabha } from "@sabha-co/sdk/testing";
+import { FakeSabha, messageEvent, signedDelivery, type FakeMessage } from "@sabha-co/sdk/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import { createStandup, type StandupEnv } from "../src/app.js";
 
 const KEY = "sabha_app_standup_test";
+const SECRET = "whsec_standup_test";
 const APP = { id: 99, name: "Standup" };
 const ASHA = { id: 7, name: "Asha" };
 const BEN = { id: 8, name: "Ben" };
 const CHEN = { id: 9, name: "Chen" };
 const ROOM = 10;
-// R18: the standup reads its profile, posts, and reads messages; nothing else.
-const ALLOWED = [/^GET \/api\/v1\/me$/, /^POST \/api\/v1\/rooms\/\d+\/messages$/, /^GET \/api\/v1\/rooms\/\d+\/messages$/];
+// R18: the standup reads its profile, posts, reacts, and reads messages; nothing else.
+const ALLOWED = [
+  /^GET \/api\/v1\/me$/,
+  /^POST \/api\/v1\/rooms\/\d+\/messages$/,
+  /^GET \/api\/v1\/rooms\/\d+\/messages$/,
+  /^POST \/api\/v1\/messages\/\d+\/reactions$/,
+];
 
 const standupEnv: StandupEnv = {
   ...env,
   SABHA_BASE_URL: "https://sabha.test",
   SABHA_API_KEY: KEY,
+  SABHA_SIGNING_SECRET: SECRET,
   TRANSPORT: "webhook",
   STANDUP_ROOM_ID: String(ROOM),
   STANDUP_TIMEZONE: "Europe/London",
@@ -40,10 +47,25 @@ function setup(overrides: Partial<StandupEnv> = {}) {
     await worker.scheduled!(createScheduledController({ scheduledTime: at }), { ...standupEnv, ...overrides }, ctx);
     await waitOnExecutionContext(ctx);
   };
+  // Sabha's webhook delivery of a reply in a thread, as the room it sits in sees it.
+  const deliver = async (reply: FakeMessage) => {
+    const parent = sabha.messages.find((message) => message.id === reply.parent_message_id)!;
+    const payload = messageEvent({
+      mentions_app: false,
+      room: { id: reply.room_id, name: null, type: "Thread", has_app: true, members: 5, messages_url: `https://sabha.test/api/v1/rooms/${reply.room_id}/messages` },
+      user: { ...reply.creator, role: "member", url: `https://sabha.test/users/${reply.creator.id}` },
+      message: { id: reply.id, created_at: reply.created_at, thread: { id: reply.room_id, parent_message_id: parent.id, parent_room_id: parent.room_id } },
+    });
+    const ctx = createExecutionContext();
+    const request = (await signedDelivery({ secret: SECRET, payload })) as Parameters<NonNullable<typeof worker.fetch>>[0];
+    const response = await worker.fetch!(request, { ...standupEnv, ...overrides }, ctx);
+    await waitOnExecutionContext(ctx);
+    expect(response.status).toBe(200);
+  };
   const posts = () => sabha.visible(ROOM).filter((message) => message.creator.id === APP.id);
   const prompt = () => posts()[0]!;
   const digest = () => posts().find((message) => message.body.includes("Read the thread"));
-  return { sabha, tick, posts, prompt, digest, errors };
+  return { sabha, tick, deliver, posts, prompt, digest, errors };
 }
 
 afterEach(() => {
@@ -60,6 +82,7 @@ describe("the prompt", () => {
     await tick("2026-11-16T09:00:00Z");
     for (let minute = 1; minute <= 11; minute++) await tick(`2026-11-16T09:${String(minute).padStart(2, "0")}:00Z`);
     expect(posts()).toHaveLength(1);
+    expect(posts()[0]!.body).toContain("I'll post a digest here at 17:00.");
   });
 
   it("asks at 09:00 local on both sides of the clocks changing (AE4)", async () => {
@@ -159,5 +182,29 @@ describe("the digest", () => {
     await tick("2026-11-16T17:00:00Z");
     expect(posts()).toHaveLength(0);
     expect(errors).toEqual([]);
+  });
+});
+
+describe("a reply", () => {
+  it("gets a ✅ in today's prompt's thread", async () => {
+    const { sabha, tick, deliver, prompt } = setup();
+    await tick("2026-11-16T09:00:00Z");
+    const reply = sabha.reply(prompt().id, { body: "Fixed the flaky test", creator: ASHA });
+    await deliver(reply);
+    expect(reply.reactions?.map((reaction) => reaction.content)).toEqual(["✅"]);
+  });
+
+  it("gets nothing under yesterday's prompt, or once the digest is out", async () => {
+    const { sabha, tick, deliver, prompt, posts } = setup();
+    await tick("2026-11-13T09:00:00Z");
+    const yesterdays = prompt();
+    await tick("2026-11-16T09:00:00Z");
+    await tick("2026-11-16T17:00:00Z");
+    const late = sabha.reply(posts()[1]!.id, { body: "Sorry, late", creator: BEN });
+    const stale = sabha.reply(yesterdays.id, { body: "Wrong thread", creator: CHEN });
+    await deliver(late);
+    await deliver(stale);
+    expect(late.reactions).toBeUndefined();
+    expect(stale.reactions).toBeUndefined();
   });
 });
