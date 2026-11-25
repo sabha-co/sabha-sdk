@@ -36,11 +36,11 @@ The SDK is shaped like Slack's [Bolt](https://tools.slack.dev/bolt-js/): an `App
 | `await say({ text, thread_ts: message.ts })` | `await say({ text, thread: true })` |
 | `await respond({ replace_original: true, … })` | `await respond({ replace_original: true, … })` |
 | `body.user.id`, `command.user_id` | `user.id`, `user.name` |
-| `body.channel.id`, `command.channel_id` | `room.id` for messages, `command.room_id`, `event.room.id` for clicks |
+| `body.channel.id`, `command.channel_id` | `channel.id` for messages, `command.channel_id`, `event.channel.id` for clicks |
 | `message.ts` | `message.id` |
-| `client.chat.postMessage({ channel, text })` | `client.post(roomId, { text })` |
+| `client.chat.postMessage({ channel, text })` | `client.post(channelId, { text })` |
 | `client.chat.update({ channel, ts, text })` | `client.editMessage(messageId, { body })` |
-| `client.conversations.replies({ channel, ts })` | `client.allMessages(message.replies.room_id)`: a thread is its own room |
+| `client.conversations.replies({ channel, ts })` | `client.allMessages(message.replies.channel_id)`: a thread is its own channel |
 | `client.reactions.add({ name: "eyes", … })` | `client.react(messageId, "👀")`, with the emoji itself |
 | `chat.startStream` / `appendStream` / `stopStream` | `const d = await draft()`, `d.update({ text })` with the whole text, `d.finish(text)` |
 | `assistant.threads.setStatus` | `status("Thinking…")` |

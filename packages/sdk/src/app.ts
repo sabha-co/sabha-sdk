@@ -6,7 +6,7 @@ import {
   actorOf,
   eventKey,
   placeOf,
-  roomIdOf,
+  channelIdOf,
   type EventName,
   type EventOf,
   type Place,
@@ -121,7 +121,7 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
     return this.route("message_created", (event) => event.event === "message_created" && event.mentions_app === true, handler);
   }
 
-  /** Every new message the app hears, or those in some places: `dm`, `thread`, `room` or `post`. */
+  /** Every new message the app hears, or those in some places: `dm`, `thread`, `channel` or `post`. */
   message(handler: Handler<"message_created", Env>): this;
   message(filter: MessageFilter, handler: Handler<"message_created", Env>): this;
   message(filterOrHandler: MessageFilter | Handler<"message_created", Env>, maybeHandler?: Handler<"message_created", Env>): this {
@@ -130,7 +130,7 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
     const places = filter.in === undefined ? undefined : new Set(([] as Place[]).concat(filter.in));
     return this.route(
       "message_created",
-      (event) => event.event === "message_created" && (!places || places.has(placeOf(event.room) as Place)),
+      (event) => event.event === "message_created" && (!places || places.has(placeOf(event.channel) as Place)),
       handler,
     );
   }
@@ -433,29 +433,29 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
     const say = async (message: string | SayOptions): Promise<Posted> => {
       const options = typeof message === "string" ? { body: message } : message;
       const { thread, ...post } = options;
-      const roomId = requirePlace(place, "say").roomId;
+      const channelId = requirePlace(place, "say").channelId;
       const parentMessageId = thread ? place?.messageId : undefined;
-      return client.post(roomId, { ...post, ...(parentMessageId ? { parentMessageId } : {}), clientMessageId: await idFor(scope, says++) });
+      return client.post(channelId, { ...post, ...(parentMessageId ? { parentMessageId } : {}), clientMessageId: await idFor(scope, says++) });
     };
 
     const status = async (text: string | null, options: { thread?: boolean } = {}) => {
-      const { roomId, messageId } = requirePlace(place, "status");
+      const { channelId, messageId } = requirePlace(place, "status");
       const parent = options.thread && messageId ? { parentMessageId: messageId } : {};
-      if (text === null) await client.clearStatus(roomId, parent);
-      else await client.setStatus(roomId, text, parent);
+      if (text === null) await client.clearStatus(channelId, parent);
+      else await client.setStatus(channelId, text, parent);
     };
 
     const draft = async (options: { thread?: boolean } = {}): Promise<Draft> => {
-      const { roomId, messageId } = requirePlace(place, "draft");
+      const { channelId, messageId } = requirePlace(place, "draft");
       const parent = options.thread && messageId ? { parentMessageId: messageId } : {};
       const id = await idFor("draft", drafts++);
-      await client.openDraft(roomId, id, parent);
+      await client.openDraft(channelId, id, parent);
       return {
         id,
         update: async (update) => {
           await client.updateDraft(id, update);
         },
-        finish: (message) => client.post(roomId, { ...(typeof message === "string" ? { body: message } : message), ...parent, clientMessageId: id }),
+        finish: (message) => client.post(channelId, { ...(typeof message === "string" ? { body: message } : message), ...parent, clientMessageId: id }),
         end: async () => {
           await client.endDraft(id);
         },
@@ -481,10 +481,10 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
       case "message_created":
       case "message_updated":
       case "message_deleted":
-        return { ...base, message: event.message, room: event.room } as unknown as Context;
+        return { ...base, message: event.message, channel: event.channel } as unknown as Context;
       case "reaction_created":
       case "reaction_deleted":
-        return { ...base, message: event.message, room: event.room, reaction: event.reaction } as unknown as Context;
+        return { ...base, message: event.message, channel: event.channel, reaction: event.reaction } as unknown as Context;
       case "command":
         return { ...base, command: event, respond: (response: InteractionResponse | string) => client.respond(event.response_url, response) } as unknown as Context;
       case "block_actions":
@@ -502,27 +502,27 @@ export class App<Env extends SabhaEnv = SabhaEnv> {
 
 export type { EventOf };
 
-function placeFor(event: SabhaEvent): { roomId: number; messageId?: number } | undefined {
+function placeFor(event: SabhaEvent): { channelId: number; messageId?: number } | undefined {
   switch (event.event) {
     case "message_created":
     case "message_updated":
     case "message_deleted":
     case "reaction_created":
     case "reaction_deleted":
-      return { roomId: event.room.id, messageId: event.message.id };
+      return { channelId: event.channel.id, messageId: event.message.id };
     case "command":
-      return { roomId: event.thread?.id ?? event.room_id };
+      return { channelId: event.thread?.id ?? event.channel_id };
     case "block_actions":
-      return { roomId: event.room.id, messageId: event.message.id };
+      return { channelId: event.channel.id, messageId: event.message.id };
     default: {
-      const roomId = roomIdOf(event);
-      return roomId === undefined ? undefined : { roomId };
+      const channelId = channelIdOf(event);
+      return channelId === undefined ? undefined : { channelId };
     }
   }
 }
 
 function requirePlace<T>(place: T | undefined, what: string): T {
-  if (!place) throw new ConfigError(`${what} needs an event that happened in a room`);
+  if (!place) throw new ConfigError(`${what} needs an event that happened in a channel`);
   return place;
 }
 

@@ -1,6 +1,6 @@
 # Standup
 
-A standup in a thread. Each scheduled morning the bot asks in one room, saying when the digest comes; people reply in the prompt's thread, and it puts a ✅ on each reply; later it posts a digest with one line per person and a link to the thread.
+A standup in a thread. Each scheduled morning the bot asks in one channel, saying when the digest comes; people reply in the prompt's thread, and it puts a ✅ on each reply; later it posts a digest with one line per person and a link to the thread.
 
 It keeps nothing of its own: the prompt and the replies live in Sabha. It runs on Cloudflare's free plan, and needs only the `post` and `read_messages` permissions.
 
@@ -9,14 +9,14 @@ It keeps nothing of its own: the prompt and the replies live in Sabha. It runs o
 You need a Cloudflare account, Node 24 and pnpm, and to be an admin in Sabha.
 
 1. **Make the app.** In Sabha, go to **Settings → Apps → Add app** and name it (say, "Standup"). Copy its **key** from the **API** tab now: Sabha shows it once.
-2. **Set its access.** On the app's **Access** tab, turn on only **Post and react** and **Read messages in its rooms**, and under **Rooms** keep only the room the standup runs in. Note the room's id: the number after `/rooms/` in its address.
+2. **Set its access.** On the app's **Access** tab, turn on only **Post and react** and **Read messages in its channels**, and under **Channels** keep only the channel the standup runs in. Note the channel's id: the number after `/channels/` in its address.
 3. **Set it up.** From a clone of the SDK's repo, in this folder (copying the folder out on its own? Replace `workspace:*` in `package.json` with the dependency in the SDK's README):
 
    ```bash
    pnpm install
    ```
 
-   In `wrangler.jsonc`, set `SABHA_BASE_URL` to your Sabha's address, `STANDUP_ROOM_ID` to the room's id, and the timezone, days and times under `vars`.
+   In `wrangler.jsonc`, set `SABHA_BASE_URL` to your Sabha's address, `STANDUP_CHANNEL_ID` to the channel's id, and the timezone, days and times under `vars`.
 
 4. **Deploy:**
 
@@ -40,7 +40,7 @@ The prompt goes out at the next `STANDUP_PROMPT_AT` on a scheduled day. To see i
 
 | Setting | Default | What it does |
 |---|---|---|
-| `STANDUP_ROOM_ID` | | The room the standup runs in. |
+| `STANDUP_CHANNEL_ID` | | The channel the standup runs in. |
 | `STANDUP_TIMEZONE` | `Europe/London` | The team's timezone. Times hold across clock changes. |
 | `STANDUP_DAYS` | `mon-fri` | `daily`, or a list such as `mon,wed,fri`. |
 | `STANDUP_PROMPT_AT` | `09:30` | When to ask. |
@@ -64,7 +64,7 @@ One such app fits the free plan. To go back, set `TRANSPORT` to `webhook`, deplo
 
 The bot is `src/app.ts`; the digest's text is `digestHtml` in `src/digest.ts`. To try changes locally against a Sabha:
 
-1. Make a second app in Sabha just for development, in a test room. Don't use the deployed app's key: a local socket on it would race the deployed one.
+1. Make a second app in Sabha just for development, in a test channel. Don't use the deployed app's key: a local socket on it would race the deployed one.
 2. `cp .dev.vars.example .dev.vars` and fill it in.
 3. `pnpm dev`, then open `http://localhost:8787/connect`.
 4. Set `STANDUP_PROMPT_AT` (in `.dev.vars`) to the coming minute, then `curl "http://localhost:8787/__scheduled"` to fire it.

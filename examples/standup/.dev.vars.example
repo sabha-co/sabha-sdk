@@ -7,4 +7,4 @@ SABHA_SIGNING_SECRET=whsec_
 TRANSPORT=socket
 # Only when Sabha's socket isn't at /cable on the base URL, such as a local AnyCable:
 # SABHA_SOCKET_URL=ws://localhost:8080/cable
-STANDUP_ROOM_ID=
+STANDUP_CHANNEL_ID=

@@ -64,12 +64,12 @@ export const COVERED_OPERATIONS = {
   profiles_commands_show: "commands",
   profiles_commands_update_patch: "setCommands",
   profiles_commands_update_put: "setCommands",
-  rooms_index: "rooms",
-  rooms_create: "createRoom",
-  rooms_show: "room",
-  rooms_update_patch: "renameRoom",
-  rooms_update_put: "renameRoom",
-  rooms_destroy: "deleteRoom",
+  channels_index: "channels",
+  channels_create: "createChannel",
+  channels_show: "channel",
+  channels_update_patch: "renameChannel",
+  channels_update_put: "renameChannel",
+  channels_destroy: "deleteChannel",
   messages_index: "messages",
   messages_create: "post",
   ephemerals_create: "postPrivately",
@@ -170,7 +170,7 @@ export class SabhaClient {
   // Messages -----------------------------------------------------------------
 
   /** Posts a message. A repeat of a `clientMessageId` returns the first post with `repeated: true`. */
-  async post(roomId: number, message: PostOptions | string): Promise<Posted & { repeated: boolean }> {
+  async post(channelId: number, message: PostOptions | string): Promise<Posted & { repeated: boolean }> {
     const options = typeof message === "string" ? { body: message } : message;
     const json: Record<string, unknown> = {};
     if (options.body !== undefined) json.body = options.body;
@@ -178,14 +178,14 @@ export class SabhaClient {
     if (options.blocks !== undefined) json.blocks = options.blocks;
     if (options.parentMessageId !== undefined) json.parent_message_id = options.parentMessageId;
     if (options.clientMessageId !== undefined) json.client_message_id = options.clientMessageId;
-    const response = await this.raw("POST", `/api/v1/rooms/${roomId}/messages`, { json });
+    const response = await this.raw("POST", `/api/v1/channels/${channelId}/messages`, { json });
     const posted = (await response.json()) as Posted;
     return { ...posted, repeated: response.status === 200 };
   }
 
-  postPrivately(roomId: number, message: { userId: number; body?: string; text?: string; blocks?: Blocks | unknown[]; parentMessageId?: number }): Promise<unknown> {
+  postPrivately(channelId: number, message: { userId: number; body?: string; text?: string; blocks?: Blocks | unknown[]; parentMessageId?: number }): Promise<unknown> {
     const { userId, parentMessageId, ...rest } = message;
-    return this.call("POST", `/api/v1/rooms/${roomId}/ephemerals`, {
+    return this.call("POST", `/api/v1/channels/${channelId}/ephemerals`, {
       json: { ...rest, user_id: userId, ...(parentMessageId === undefined ? {} : { parent_message_id: parentMessageId }) },
     });
   }
@@ -194,16 +194,16 @@ export class SabhaClient {
     return this.call("GET", `/api/v1/messages/${id}`);
   }
 
-  /** One page of a room's (or a thread's) messages, newest first. */
-  messages(roomId: number, page: { before?: string; after?: string; limit?: number } = {}): Promise<MessagePage> {
-    return this.call("GET", `/api/v1/rooms/${roomId}/messages`, { query: page });
+  /** One page of a channel's (or a thread's) messages, newest first. */
+  messages(channelId: number, page: { before?: string; after?: string; limit?: number } = {}): Promise<MessagePage> {
+    return this.call("GET", `/api/v1/channels/${channelId}/messages`, { query: page });
   }
 
-  /** Every message in a room (or thread), newest first, a page at a time; `break` to stop early. */
-  async *allMessages(roomId: number, options: { after?: string; limit?: number } = {}): AsyncGenerator<Message> {
+  /** Every message in a channel (or thread), newest first, a page at a time; `break` to stop early. */
+  async *allMessages(channelId: number, options: { after?: string; limit?: number } = {}): AsyncGenerator<Message> {
     let before: string | undefined;
     for (;;) {
-      const page = await this.messages(roomId, { ...options, limit: options.limit ?? 200, ...(before ? { before } : {}) });
+      const page = await this.messages(channelId, { ...options, limit: options.limit ?? 200, ...(before ? { before } : {}) });
       for (const message of page.results) yield message;
       if (!page.has_more || !page.next_cursor) return;
       before = page.next_cursor;
@@ -232,21 +232,21 @@ export class SabhaClient {
 
   // Statuses and drafts ------------------------------------------------------
 
-  setStatus(roomId: number, status: string, options: { parentMessageId?: number } = {}): Promise<{ draft_id: string }> {
-    return this.call("PUT", `/api/v1/rooms/${roomId}/status`, {
+  setStatus(channelId: number, status: string, options: { parentMessageId?: number } = {}): Promise<{ draft_id: string }> {
+    return this.call("PUT", `/api/v1/channels/${channelId}/status`, {
       json: { status, ...(options.parentMessageId === undefined ? {} : { parent_message_id: options.parentMessageId }) },
     });
   }
 
-  clearStatus(roomId: number, options: { parentMessageId?: number } = {}): Promise<unknown> {
-    return this.call("DELETE", `/api/v1/rooms/${roomId}/status`, {
+  clearStatus(channelId: number, options: { parentMessageId?: number } = {}): Promise<unknown> {
+    return this.call("DELETE", `/api/v1/channels/${channelId}/status`, {
       query: options.parentMessageId === undefined ? {} : { parent_message_id: options.parentMessageId },
     });
   }
 
   /** Opens a live draft. Finish it by posting with `clientMessageId` set to `draftId`. */
-  openDraft(roomId: number, draftId: string, options: { parentMessageId?: number } = {}): Promise<{ draft_id: string }> {
-    return this.call("POST", `/api/v1/rooms/${roomId}/drafts`, {
+  openDraft(channelId: number, draftId: string, options: { parentMessageId?: number } = {}): Promise<{ draft_id: string }> {
+    return this.call("POST", `/api/v1/channels/${channelId}/drafts`, {
       json: { draft_id: draftId, ...(options.parentMessageId === undefined ? {} : { parent_message_id: options.parentMessageId }) },
     });
   }
@@ -260,67 +260,67 @@ export class SabhaClient {
     return this.call("DELETE", `/api/v1/drafts/${draftId}`);
   }
 
-  // Rooms, members and people ------------------------------------------------
+  // Channels, members and people ------------------------------------------------
 
-  rooms(query: { joinable?: boolean; query?: string; page?: number; per_page?: number } = {}): Promise<unknown> {
-    return this.call("GET", "/api/v1/rooms", { query });
+  channels(query: { joinable?: boolean; query?: string; page?: number; per_page?: number } = {}): Promise<unknown> {
+    return this.call("GET", "/api/v1/channels", { query });
   }
 
-  room(id: number): Promise<unknown> {
-    return this.call("GET", `/api/v1/rooms/${id}`);
+  channel(id: number): Promise<unknown> {
+    return this.call("GET", `/api/v1/channels/${id}`);
   }
 
-  createRoom(room: { name: string; type?: string }): Promise<unknown> {
-    return this.call("POST", "/api/v1/rooms", { json: room });
+  createChannel(channel: { name: string; type?: string }): Promise<unknown> {
+    return this.call("POST", "/api/v1/channels", { json: channel });
   }
 
-  renameRoom(id: number, name: string): Promise<unknown> {
-    return this.call("PATCH", `/api/v1/rooms/${id}`, { json: { name } });
+  renameChannel(id: number, name: string): Promise<unknown> {
+    return this.call("PATCH", `/api/v1/channels/${id}`, { json: { name } });
   }
 
-  deleteRoom(id: number): Promise<unknown> {
-    return this.call("DELETE", `/api/v1/rooms/${id}`);
+  deleteChannel(id: number): Promise<unknown> {
+    return this.call("DELETE", `/api/v1/channels/${id}`);
   }
 
-  members(roomId: number): Promise<unknown> {
-    return this.call("GET", `/api/v1/rooms/${roomId}/members`);
+  members(channelId: number): Promise<unknown> {
+    return this.call("GET", `/api/v1/channels/${channelId}/members`);
   }
 
-  addMember(roomId: number, userId: number): Promise<unknown> {
-    return this.call("POST", `/api/v1/rooms/${roomId}/members`, { json: { user_id: userId } });
+  addMember(channelId: number, userId: number): Promise<unknown> {
+    return this.call("POST", `/api/v1/channels/${channelId}/members`, { json: { user_id: userId } });
   }
 
-  removeMember(roomId: number, userId: number): Promise<unknown> {
-    return this.call("DELETE", `/api/v1/rooms/${roomId}/members/${userId}`);
+  removeMember(channelId: number, userId: number): Promise<unknown> {
+    return this.call("DELETE", `/api/v1/channels/${channelId}/members/${userId}`);
   }
 
-  join(roomId: number): Promise<unknown> {
-    return this.call("POST", `/api/v1/rooms/${roomId}/membership`);
+  join(channelId: number): Promise<unknown> {
+    return this.call("POST", `/api/v1/channels/${channelId}/membership`);
   }
 
-  leave(roomId: number): Promise<unknown> {
-    return this.call("DELETE", `/api/v1/rooms/${roomId}/membership`);
+  leave(channelId: number): Promise<unknown> {
+    return this.call("DELETE", `/api/v1/channels/${channelId}/membership`);
   }
 
   openDm(userIds: number[]): Promise<{ id: number } & Record<string, unknown>> {
     return this.call("POST", "/api/v1/direct_messages", { json: { user_ids: userIds } });
   }
 
-  users(query: { room_id?: number; page?: number; per_page?: number } = {}): Promise<unknown> {
+  users(query: { channel_id?: number; page?: number; per_page?: number } = {}): Promise<unknown> {
     return this.call("GET", "/api/v1/users", { query });
   }
 
-  user(id: number, query: { room_id?: number } = {}): Promise<unknown> {
+  user(id: number, query: { channel_id?: number } = {}): Promise<unknown> {
     return this.call("GET", `/api/v1/users/${id}`, { query });
   }
 
-  findUsers(query: { query: string; room_id?: number }): Promise<unknown> {
+  findUsers(query: { query: string; channel_id?: number }): Promise<unknown> {
     return this.call("GET", "/api/v1/autocompletable/users", { query });
   }
 
-  search(query: { q: string; room_ids?: number[]; author_ids?: number[]; before?: string; after?: string; limit?: number }): Promise<unknown> {
-    const { room_ids, author_ids, ...rest } = query;
-    return this.call("GET", "/api/v1/search", { query: { ...rest, "room_ids[]": room_ids, "author_ids[]": author_ids } });
+  search(query: { q: string; channel_ids?: number[]; author_ids?: number[]; before?: string; after?: string; limit?: number }): Promise<unknown> {
+    const { channel_ids, author_ids, ...rest } = query;
+    return this.call("GET", "/api/v1/search", { query: { ...rest, "channel_ids[]": channel_ids, "author_ids[]": author_ids } });
   }
 
   // Answers -------------------------------------------------------------------

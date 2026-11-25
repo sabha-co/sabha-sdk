@@ -26,7 +26,7 @@
       "SABHA_API_KEY": { "description": "The app's key, from Settings → Apps in Sabha. Give the app the post and read_messages permissions." },
       "SABHA_SIGNING_SECRET": { "description": "The app's signing secret, from the same page." },
       "TRANSPORT": { "description": "webhook (the default) or socket. With socket the app holds a live connection and shows online." },
-      "STANDUP_ROOM_ID": { "description": "The id of the room the standup runs in; the app must be a member." },
+      "STANDUP_CHANNEL_ID": { "description": "The id of the channel the standup runs in; the app must be a member." },
       "STANDUP_TIMEZONE": { "description": "Your team's timezone, such as Europe/London." },
       "STANDUP_DAYS": { "description": "Which days: mon-fri (the default), daily, or a list such as mon,wed,fri." },
       "STANDUP_PROMPT_AT": { "description": "When to ask, in local time, such as 09:30." },

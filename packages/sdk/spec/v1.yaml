@@ -69,14 +69,17 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [ id, name, permissions, workspace ]
+                required: [ id, name, permissions, direct_messages, workspace ]
                 properties:
                   id: { type: integer }
                   name: { type: string }
                   permissions:
                     type: array
-                    description: What an admin allows the key, in the order Settings shows them, from post, read_messages, read_directory, dm and manage_rooms. New permissions may be added.
+                    description: What an admin allows the key, in the order Settings shows them, from post, read_messages, read_directory, dm and manage_channels. New permissions may be added.
                     items: { type: string }
+                  direct_messages:
+                    type: boolean
+                    description: Whether people can message the app. Off until the app turns it on.
                   workspace:
                     type: object
                     required: [ name, url ]
@@ -91,7 +94,7 @@ paths:
       x-sabha-action: profiles#update
       x-sabha-permission: none
       x-sabha-idempotency: natural
-      summary: Change the app's name or where its events go.
+      summary: Change the app's name, where its events go, or whether people can message it.
       requestBody:
         content:
           application/json:
@@ -100,19 +103,21 @@ paths:
               properties:
                 name: { type: string }
                 webhook_url: { type: [ string, "null" ] }
-                mentions_url: { type: [ string, "null" ] }
-                everything_url: { type: [ string, "null" ] }
+                direct_messages:
+                  type: boolean
+                  description: True when the app holds conversations, so people get a Message button and can DM it. An app that only posts leaves it off.
       responses:
         "200":
-          description: The app's name and webhook.
+          description: The app's name, webhook, and whether people can message it.
           content:
             application/json:
               schema:
                 type: object
-                required: [ name, webhook_url ]
+                required: [ name, webhook_url, direct_messages ]
                 properties:
                   name: { type: string }
                   webhook_url: { type: [ string, "null" ] }
+                  direct_messages: { type: boolean }
         <<: *keyed
         "422": { $ref: "#/components/responses/Invalid" }
     put:
@@ -203,31 +208,31 @@ paths:
       <<: *commands_update
       operationId: profiles_commands_update_put
 
-  /api/v1/rooms:
+  /api/v1/channels:
     get:
-      operationId: rooms_index
-      x-sabha-action: rooms#index
+      operationId: channels_index
+      x-sabha-action: channels#index
       x-sabha-permission: read_directory
       x-sabha-idempotency: natural
-      summary: The rooms the app is in, or with joinable, the open rooms it could join.
+      summary: The channels the app is in, or with joinable, the open channels it could join.
       parameters:
         - { name: joinable, in: query, schema: { type: boolean } }
-        - { name: query, in: query, schema: { type: string }, description: Rooms whose names match. }
+        - { name: query, in: query, schema: { type: string }, description: Channels whose names match. }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
         "200":
-          description: The rooms.
+          description: The channels.
           content:
             application/json:
-              schema: { type: array, items: { $ref: "#/components/schemas/Room" } }
+              schema: { type: array, items: { $ref: "#/components/schemas/Channel" } }
         <<: *keyed
     post:
-      operationId: rooms_create
-      x-sabha-action: rooms#create
-      x-sabha-permission: manage_rooms
+      operationId: channels_create
+      x-sabha-action: channels#create
+      x-sabha-permission: manage_channels
       x-sabha-idempotency: none
-      summary: Make a room, with the app as its creator and first member.
+      summary: Make a channel, with the app as its creator and first member.
       requestBody:
         required: true
         content:
@@ -239,28 +244,28 @@ paths:
                 name: { type: string }
                 type: { enum: [ open, closed ] }
       responses:
-        "201": { $ref: "#/components/responses/Room" }
+        "201": { $ref: "#/components/responses/Channel" }
         <<: *keyed
         "422": { $ref: "#/components/responses/Invalid" }
 
-  /api/v1/rooms/{id}:
+  /api/v1/channels/{id}:
     parameters: [ { $ref: "#/components/parameters/Id" } ]
     get:
-      operationId: rooms_show
-      x-sabha-action: rooms#show
+      operationId: channels_show
+      x-sabha-action: channels#show
       x-sabha-permission: read_directory
       x-sabha-idempotency: natural
-      summary: One room the app can reach.
+      summary: One channel the app can reach.
       responses:
-        "200": { $ref: "#/components/responses/Room" }
+        "200": { $ref: "#/components/responses/Channel" }
         <<: *keyed
         "404": { $ref: "#/components/responses/NotFound" }
-    patch: &rooms_update
-      operationId: rooms_update_patch
-      x-sabha-action: rooms#update
-      x-sabha-permission: manage_rooms
+    patch: &channels_update
+      operationId: channels_update_patch
+      x-sabha-action: channels#update
+      x-sabha-permission: manage_channels
       x-sabha-idempotency: natural
-      summary: Rename a room the app made.
+      summary: Rename a channel the app made.
       requestBody:
         content:
           application/json:
@@ -269,37 +274,38 @@ paths:
               properties:
                 name: { type: string }
       responses:
-        "200": { $ref: "#/components/responses/Room" }
+        "200": { $ref: "#/components/responses/Channel" }
         <<: *keyed
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Invalid" }
     put:
-      <<: *rooms_update
-      operationId: rooms_update_put
+      <<: *channels_update
+      operationId: channels_update_put
     delete:
-      operationId: rooms_destroy
-      x-sabha-action: rooms#destroy
-      x-sabha-permission: manage_rooms
+      operationId: channels_destroy
+      x-sabha-action: channels#destroy
+      x-sabha-permission: manage_channels
       x-sabha-idempotency: natural
-      summary: Delete a room the app made.
+      summary: Delete a channel the app made.
       responses:
         "204": { description: Deleted. }
         <<: *keyed
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Invalid" }
 
-  /api/v1/rooms/{room_id}/messages:
-    parameters: [ { $ref: "#/components/parameters/RoomId" } ]
+  /api/v1/channels/{channel_id}/messages:
+    parameters: [ { $ref: "#/components/parameters/ChannelId" } ]
     get:
       operationId: messages_index
       x-sabha-action: messages#index
       x-sabha-permission: read_messages
       x-sabha-idempotency: natural
-      summary: A room's messages, newest first, a page at a time.
+      summary: A channel's messages, newest first, a page at a time.
       parameters:
         - { name: before, in: query, schema: { type: string }, description: "An ISO8601 time, or the next_cursor of the page before." }
         - { name: after, in: query, schema: { type: string }, description: An ISO8601 time. }
         - { name: limit, in: query, schema: { type: integer } }
+        - { name: metadata_type, in: query, schema: { type: string }, description: "Only messages whose metadata has this event_type." }
       responses:
         "200":
           description: A page of messages.
@@ -331,6 +337,12 @@ paths:
                 body: { type: string, description: HTML or plain text. }
                 text: { type: string, description: "Slack mrkdwn, instead of body." }
                 blocks: { $ref: "#/components/schemas/Blocks" }
+                metadata: &metadata_write
+                  type: object
+                  description: "The message's metadata, with the limits Metadata lists. Metadata alone isn't a message: a post still needs body, text or blocks."
+                  properties:
+                    event_type: { type: string }
+                    event_payload: { type: object }
                 parent_message_id: { type: integer }
                 client_message_id: { type: string }
           text/plain:
@@ -358,8 +370,8 @@ paths:
         "429": { $ref: "#/components/responses/RateLimited" }
         "503": { $ref: "#/components/responses/Unavailable" }
 
-  /api/v1/rooms/{room_id}/ephemerals:
-    parameters: [ { $ref: "#/components/parameters/RoomId" } ]
+  /api/v1/channels/{channel_id}/ephemerals:
+    parameters: [ { $ref: "#/components/parameters/ChannelId" } ]
     post:
       operationId: ephemerals_create
       x-sabha-action: ephemerals#create
@@ -385,8 +397,8 @@ paths:
         "422": { $ref: "#/components/responses/Invalid" }
         "429": { $ref: "#/components/responses/RateLimited" }
 
-  /api/v1/rooms/{room_id}/status:
-    parameters: [ { $ref: "#/components/parameters/RoomId" } ]
+  /api/v1/channels/{channel_id}/status:
+    parameters: [ { $ref: "#/components/parameters/ChannelId" } ]
     patch: &statuses_update
       operationId: statuses_update_patch
       x-sabha-action: statuses#update
@@ -434,8 +446,8 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/RateLimited" }
 
-  /api/v1/rooms/{room_id}/drafts:
-    parameters: [ { $ref: "#/components/parameters/RoomId" } ]
+  /api/v1/channels/{channel_id}/drafts:
+    parameters: [ { $ref: "#/components/parameters/ChannelId" } ]
     post:
       operationId: drafts_create
       x-sabha-action: drafts#create
@@ -467,14 +479,14 @@ paths:
         "422": { $ref: "#/components/responses/Invalid" }
         "429": { $ref: "#/components/responses/RateLimited" }
 
-  /api/v1/rooms/{room_id}/members:
-    parameters: [ { $ref: "#/components/parameters/RoomId" } ]
+  /api/v1/channels/{channel_id}/members:
+    parameters: [ { $ref: "#/components/parameters/ChannelId" } ]
     get:
       operationId: members_index
       x-sabha-action: members#index
       x-sabha-permission: read_directory
       x-sabha-idempotency: natural
-      summary: Who is in a room.
+      summary: Who is in a channel.
       responses:
         "200":
           description: The members.
@@ -494,9 +506,9 @@ paths:
     post:
       operationId: members_create
       x-sabha-action: members#create
-      x-sabha-permission: manage_rooms
+      x-sabha-permission: manage_channels
       x-sabha-idempotency: none
-      summary: Add someone to a room the app made.
+      summary: Add someone to a channel the app made.
       requestBody:
         required: true
         content:
@@ -516,30 +528,30 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Invalid" }
 
-  /api/v1/rooms/{room_id}/members/{id}:
-    parameters: [ { $ref: "#/components/parameters/RoomId" }, { $ref: "#/components/parameters/Id" } ]
+  /api/v1/channels/{channel_id}/members/{id}:
+    parameters: [ { $ref: "#/components/parameters/ChannelId" }, { $ref: "#/components/parameters/Id" } ]
     delete:
       operationId: members_destroy
       x-sabha-action: members#destroy
-      x-sabha-permission: manage_rooms
+      x-sabha-permission: manage_channels
       x-sabha-idempotency: natural
-      summary: Remove someone from a room the app made.
+      summary: Remove someone from a channel the app made.
       responses:
         "204": { description: Removed. }
         <<: *keyed
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Invalid" }
 
-  /api/v1/rooms/{room_id}/membership:
-    parameters: [ { $ref: "#/components/parameters/RoomId" } ]
+  /api/v1/channels/{channel_id}/membership:
+    parameters: [ { $ref: "#/components/parameters/ChannelId" } ]
     post:
       operationId: memberships_create
       x-sabha-action: memberships#create
-      x-sabha-permission: manage_rooms
+      x-sabha-permission: manage_channels
       x-sabha-idempotency: natural
-      summary: The app joins an open room.
+      summary: The app joins an open channel.
       responses:
-        "201": { $ref: "#/components/responses/Room" }
+        "201": { $ref: "#/components/responses/Channel" }
         <<: *keyed
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Invalid" }
@@ -548,7 +560,7 @@ paths:
       x-sabha-action: memberships#destroy
       x-sabha-permission: none
       x-sabha-idempotency: natural
-      summary: The app leaves a room.
+      summary: The app leaves a channel.
       responses:
         "204": { description: Left. }
         <<: *keyed
@@ -586,6 +598,9 @@ paths:
               properties:
                 body: { type: string }
                 blocks: { $ref: "#/components/schemas/Blocks" }
+                metadata:
+                  <<: *metadata_write
+                  description: "New metadata, with the limits Metadata lists. Leave it out to keep the message's, send {} to clear it. An edit of only metadata keeps the body."
           text/plain:
             schema: { type: string, description: The new text. }
       responses:
@@ -600,6 +615,7 @@ paths:
                   id: { type: integer }
                   body: { $ref: "#/components/schemas/Body" }
                   blocks: { type: [ array, "null" ] }
+                  metadata: { $ref: "#/components/schemas/Metadata" }
         <<: *keyed
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Invalid" }
@@ -767,7 +783,7 @@ paths:
                 properties:
                   id: { type: integer }
         "201":
-          description: Posted in the room.
+          description: Posted in the channel.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Posted" }
@@ -810,7 +826,7 @@ paths:
       summary: Search the messages the app can read.
       parameters:
         - { name: q, in: query, required: true, schema: { type: string } }
-        - { name: "room_ids[]", in: query, schema: { type: array, items: { type: integer } }, description: Only these rooms. }
+        - { name: "channel_ids[]", in: query, schema: { type: array, items: { type: integer } }, description: Only these channels. }
         - { name: "author_ids[]", in: query, schema: { type: array, items: { type: integer } }, description: Only these authors. }
         - { name: before, in: query, schema: { type: string } }
         - { name: after, in: query, schema: { type: string } }
@@ -828,12 +844,12 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [ id, creator, body, room, created_at ]
+                      required: [ id, creator, body, channel, created_at ]
                       properties:
                         id: { type: integer }
                         creator: { $ref: "#/components/schemas/UserRef" }
                         body: { $ref: "#/components/schemas/Body" }
-                        room:
+                        channel:
                           type: object
                           required: [ id, name ]
                           properties:
@@ -852,9 +868,9 @@ paths:
       x-sabha-action: users#index
       x-sabha-permission: read_directory
       x-sabha-idempotency: natural
-      summary: The people the app can see, or a room's with room_id.
+      summary: The people the app can see, or a channel's with channel_id.
       parameters:
-        - { name: room_id, in: query, schema: { type: integer } }
+        - { name: channel_id, in: query, schema: { type: integer } }
         - { $ref: "#/components/parameters/Page" }
         - { $ref: "#/components/parameters/PerPage" }
       responses:
@@ -873,9 +889,9 @@ paths:
       x-sabha-action: users#show
       x-sabha-permission: read_directory
       x-sabha-idempotency: natural
-      summary: One person, with their profile, found among a room's people with room_id.
+      summary: One person, with their profile, found among a channel's people with channel_id.
       parameters:
-        - { name: room_id, in: query, schema: { type: integer } }
+        - { name: channel_id, in: query, schema: { type: integer } }
       responses:
         "200":
           description: The person.
@@ -894,7 +910,7 @@ paths:
       summary: People whose names match, for an @mention picker.
       parameters:
         - { name: query, in: query, schema: { type: string } }
-        - { name: room_id, in: query, schema: { type: integer } }
+        - { name: channel_id, in: query, schema: { type: integer } }
       responses:
         "200":
           description: The matches.
@@ -911,7 +927,7 @@ paths:
       x-sabha-action: incoming_webhooks#create
       x-sabha-permission: none
       x-sabha-idempotency: idempotency_key
-      summary: Post into the webhook's room (Slack's incoming webhooks). The token is the URL's own; no key.
+      summary: Post into the webhook's channel (Slack's incoming webhooks). The token is the URL's own; no key.
       security: []
       parameters:
         - name: Idempotency-Key
@@ -969,7 +985,7 @@ components:
 
   parameters:
     Id: { name: id, in: path, required: true, schema: { type: integer } }
-    RoomId: { name: room_id, in: path, required: true, schema: { type: integer } }
+    ChannelId: { name: channel_id, in: path, required: true, schema: { type: integer } }
     Page: { name: page, in: query, schema: { type: integer }, description: "From 1." }
     PerPage: { name: per_page, in: query, schema: { type: integer }, description: "1 to 100; 50 by default." }
     MessageId: { name: message_id, in: path, required: true, schema: { type: integer } }
@@ -1014,9 +1030,9 @@ components:
         The workspace moved to another server. Repeat the request at Location: 301 for a read,
         308 (same method and body) for anything else.
       headers: { Location: { schema: { type: string } } }
-    Room:
-      description: The room.
-      content: { application/json: { schema: { $ref: "#/components/schemas/Room" } } }
+    Channel:
+      description: The channel.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Channel" } } }
     Posted:
       description: Posted.
       content: { application/json: { schema: { $ref: "#/components/schemas/Posted" } } }
@@ -1044,9 +1060,9 @@ components:
         application/json:
           schema:
             type: object
-            required: [ room ]
+            required: [ channel ]
             properties:
-              room:
+              channel:
                 type: object
                 required: [ id ]
                 properties:
@@ -1157,7 +1173,7 @@ components:
         linkedin_url: { type: [ string, "null" ] }
         personal_url: { type: [ string, "null" ] }
 
-    Room:
+    Channel:
       type: object
       required: [ id, name, type, messages_url ]
       properties:
@@ -1168,10 +1184,10 @@ components:
 
     Posted:
       type: object
-      required: [ id, room_id ]
+      required: [ id, channel_id ]
       properties:
         id: { type: integer }
-        room_id: { type: integer }
+        channel_id: { type: integer }
 
     Body:
       type: object
@@ -1186,6 +1202,19 @@ components:
       description: Block Kit blocks, the subset APPS.md §7 lists. The server's own check is the authority.
       items: { type: object }
 
+    Metadata:
+      type: object
+      description: >-
+        Slack's message metadata, present only on a message that has some. Only the app that posted the
+        message writes it; any app that can read the message reads it, so keep to ids and references, never
+        secrets or personal data. The event_type alert is Sabha's own and its payload is checked: status
+        (firing or resolved) and title are required, severity, service, url and key are optional, and any
+        other key is refused.
+      required: [ event_type, event_payload ]
+      properties:
+        event_type: { type: string, description: "1 to 64 letters, digits, _ or -." }
+        event_payload: { type: object, description: "The app's own fields: at most 8 KB as JSON, nested at most 10 levels." }
+
     Attachment:
       type: [ object, "null" ]
       description: The message's file, or null. The url is signed and lasts an hour.
@@ -1198,31 +1227,32 @@ components:
 
     Thread:
       type: [ object, "null" ]
-      description: Where a message in a thread sits, or null for a message in the room itself.
-      required: [ id, parent_message_id, parent_room_id ]
+      description: Where a message in a thread sits, or null for a message in the channel itself.
+      required: [ id, parent_message_id, parent_channel_id ]
       properties:
         id: { type: integer }
         parent_message_id: { type: integer }
-        parent_room_id: { type: integer }
+        parent_channel_id: { type: integer }
 
     Replies:
       type: [ object, "null" ]
       description: The thread under a message, or null when it has none.
-      required: [ room_id, count ]
+      required: [ channel_id, count ]
       properties:
-        room_id: { type: integer }
+        channel_id: { type: integer }
         count: { type: integer }
 
     Message:
       type: object
-      required: [ id, creator, body, attachment, room_id, thread, replies, url, created_at ]
+      required: [ id, creator, body, attachment, channel_id, thread, replies, url, created_at ]
       properties: &message_properties
         id: { type: integer }
         creator: { $ref: "#/components/schemas/UserRef" }
         body: { $ref: "#/components/schemas/Body" }
         blocks: { $ref: "#/components/schemas/Blocks" }
+        metadata: { $ref: "#/components/schemas/Metadata" }
         attachment: { $ref: "#/components/schemas/Attachment" }
-        room_id: { type: integer }
+        channel_id: { type: integer }
         thread: { $ref: "#/components/schemas/Thread" }
         replies: { $ref: "#/components/schemas/Replies" }
         url: { type: string }
@@ -1230,7 +1260,7 @@ components:
 
     MessageWithMentionees:
       type: object
-      required: [ id, creator, body, attachment, room_id, thread, replies, url, created_at, mentionees ]
+      required: [ id, creator, body, attachment, channel_id, thread, replies, url, created_at, mentionees ]
       properties:
         <<: *message_properties
         mentionees: { type: array, items: { $ref: "#/components/schemas/UserRef" } }
@@ -1244,7 +1274,7 @@ components:
         role: { type: string }
         url: { type: string }
 
-    EventRoom:
+    EventChannel:
       type: object
       required: [ id, name, type, members, has_app, messages_url ]
       properties:
@@ -1262,6 +1292,7 @@ components:
         id: { type: integer }
         body: { $ref: "#/components/schemas/Body" }
         blocks: { $ref: "#/components/schemas/Blocks" }
+        metadata: { $ref: "#/components/schemas/Metadata" }
         has_attachment: { type: boolean }
         attachment: { $ref: "#/components/schemas/Attachment" }
         mentionees: { type: array, items: { $ref: "#/components/schemas/UserRef" } }
@@ -1273,23 +1304,23 @@ components:
 
     MessageEvent:
       type: object
-      required: [ event, id, user, room, message ]
+      required: [ event, id, user, channel, message ]
       properties:
         event: { enum: [ message_created, message_updated, message_deleted ] }
         id: { type: string, description: "The event's id: the same on the WebSocket, the webhook and every retry. Deduplicate on it." }
         user: { $ref: "#/components/schemas/EventUser" }
-        room: { $ref: "#/components/schemas/EventRoom" }
+        channel: { $ref: "#/components/schemas/EventChannel" }
         message: { $ref: "#/components/schemas/EventMessage" }
         mentions_app: { type: boolean, description: "On message_created only: whether it names the app itself, not just @everyone." }
 
     ReactionEvent:
       type: object
-      required: [ event, id, user, room, message, reaction ]
+      required: [ event, id, user, channel, message, reaction ]
       properties:
         event: { enum: [ reaction_created, reaction_deleted ] }
         id: { type: string, description: "The event's id: the same on the WebSocket, the webhook and every retry. Deduplicate on it." }
         user: { $ref: "#/components/schemas/EventUser" }
-        room: { $ref: "#/components/schemas/EventRoom" }
+        channel: { $ref: "#/components/schemas/EventChannel" }
         message: { $ref: "#/components/schemas/EventMessage" }
         reaction:
           type: object
@@ -1308,7 +1339,7 @@ components:
 
     CommandEvent:
       type: object
-      required: [ id, event, command, text, user_id, user_name, room_id, room_name, response_url ]
+      required: [ id, event, command, text, user_id, user_name, channel_id, channel_name, response_url ]
       properties:
         id: { type: string }
         event: { const: command }
@@ -1316,14 +1347,14 @@ components:
         text: { type: string }
         user_id: { type: integer }
         user_name: { type: string }
-        room_id: { type: integer }
-        room_name: { type: [ string, "null" ] }
+        channel_id: { type: integer }
+        channel_name: { type: [ string, "null" ] }
         thread: { $ref: "#/components/schemas/Thread" }
         response_url: { type: string }
 
     BlockActionsEvent:
       type: object
-      required: [ id, event, user, room, message, actions, response_url ]
+      required: [ id, event, user, channel, message, actions, response_url ]
       properties:
         id: { type: string }
         event: { const: block_actions }
@@ -1334,7 +1365,7 @@ components:
             id: { type: integer }
             name: { type: string }
             role: { type: string }
-        room:
+        channel:
           type: object
           required: [ id, name ]
           properties:

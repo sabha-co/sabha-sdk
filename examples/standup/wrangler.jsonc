@@ -12,7 +12,7 @@
   "vars": {
     "SABHA_BASE_URL": "https://team.sabha.co",
     "TRANSPORT": "webhook",
-    "STANDUP_ROOM_ID": "",
+    "STANDUP_CHANNEL_ID": "",
     "STANDUP_TIMEZONE": "Europe/London",
     "STANDUP_DAYS": "mon-fri",
     "STANDUP_PROMPT_AT": "09:30",

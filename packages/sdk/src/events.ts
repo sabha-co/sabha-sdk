@@ -8,7 +8,7 @@ export type CommandEvent = Schemas["CommandEvent"];
 export type BlockActionsEvent = Schemas["BlockActionsEvent"];
 export type UserEvent = Schemas["UserEvent"];
 export type EventMessage = Schemas["EventMessage"];
-export type EventRoom = Schemas["EventRoom"];
+export type EventChannel = Schemas["EventChannel"];
 export type EventUser = Schemas["EventUser"];
 export type Message = Schemas["Message"];
 export type Blocks = Schemas["Blocks"];
@@ -39,11 +39,11 @@ export const EVENT_NAMES: readonly EventName[] = [
   "user_deleted",
 ];
 
-/** Where a message sits, from `room.type`: a forum post's replies are `post`, not `thread`. */
-export type Place = "dm" | "thread" | "room" | "post";
+/** Where a message sits, from `channel.type`: a forum post's replies are `post`, not `thread`. */
+export type Place = "dm" | "thread" | "channel" | "post";
 
-export function placeOf(room: Pick<EventRoom, "type">): Place | undefined {
-  switch (room.type) {
+export function placeOf(channel: Pick<EventChannel, "type">): Place | undefined {
+  switch (channel.type) {
     case "Direct":
       return "dm";
     case "Thread":
@@ -53,7 +53,7 @@ export function placeOf(room: Pick<EventRoom, "type">): Place | undefined {
     case "Open":
     case "Closed":
     case "Forum":
-      return "room";
+      return "channel";
     default:
       return undefined;
   }
@@ -79,8 +79,8 @@ export function parseEvent(raw: unknown): SabhaEvent {
     case "message_deleted":
     case "reaction_created":
     case "reaction_deleted":
-      if (!has(raw.message, "id") || !has(raw.room, "id") || !has(raw.user, "id")) {
-        throw new EventShapeError(`${raw.event} without message, room or user`);
+      if (!has(raw.message, "id") || !has(raw.channel, "id") || !has(raw.user, "id")) {
+        throw new EventShapeError(`${raw.event} without message, channel or user`);
       }
       if (raw.event.startsWith("reaction") && !has(raw.reaction, "id")) throw new EventShapeError(`${raw.event} without reaction`);
       break;
@@ -139,15 +139,15 @@ export function actorOf(event: SabhaEvent): { id: number; name: string } {
   return { id: event.user.id, name: event.user.name };
 }
 
-/** The room an event happened in, when it has one. */
-export function roomIdOf(event: SabhaEvent): number | undefined {
+/** The channel an event happened in, when it has one. */
+export function channelIdOf(event: SabhaEvent): number | undefined {
   switch (event.event) {
     case "command":
-      return event.room_id;
+      return event.channel_id;
     case "user_created":
     case "user_deleted":
       return undefined;
     default:
-      return event.room.id;
+      return event.channel.id;
   }
 }

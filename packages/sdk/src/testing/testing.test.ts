@@ -41,11 +41,11 @@ describe("FakeSabha", () => {
     const one = client(fake, "key_one_123");
     const prompt = await one.post(10, "Standup");
     for (let i = 0; i < 450; i++) await one.post(10, { body: `reply ${i}`, parentMessageId: prompt.id });
-    const threadRoom = (await one.message(prompt.id)).replies!.room_id;
+    const threadChannel = (await one.message(prompt.id)).replies!.channel_id;
     const sizes: number[] = [];
     let before: string | undefined;
     for (;;) {
-      const page = await one.messages(threadRoom, { limit: 200, ...(before ? { before } : {}) });
+      const page = await one.messages(threadChannel, { limit: 200, ...(before ? { before } : {}) });
       sizes.push(page.results.length);
       if (!page.has_more) break;
       before = page.next_cursor!;

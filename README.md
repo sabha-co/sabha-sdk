@@ -39,15 +39,15 @@ pnpm builds it on install; list `@sabha-co/sdk` under `pnpm.onlyBuiltDependencie
 | `TRANSPORT` | `webhook` (the default) or `socket`. |
 | `SABHA_SOCKET_URL` | Only when the socket isn't at `/cable` on the base URL, such as a local AnyCable. |
 
-An admin makes the app in **Settings → Apps → Add app**, picks its permissions (ask only for what it uses) and the rooms it works in, and sets its webhook URL to where the app runs.
+An admin makes the app in **Settings → Apps → Add app**, picks its permissions (ask only for what it uses) and the channels it works in, and sets its webhook URL to where the app runs.
 
 ## Handlers
 
 | Register | Runs on | The context adds | A returned value |
 |---|---|---|---|
-| `app.mention(h)` | a message that mentions the app | `message`, `room` | is posted as the reply |
-| `app.message(h)`, `app.message({ in: "dm" }, h)` | every message the app hears; `in` is `dm`, `thread`, `room` or `post` | `message`, `room` | is posted as the reply |
-| `app.reaction(h)`, `app.reaction({ emoji: "👀" }, h)` | a reaction added to a message | `message`, `room`, `reaction` | is posted as the reply |
+| `app.mention(h)` | a message that mentions the app | `message`, `channel` | is posted as the reply |
+| `app.message(h)`, `app.message({ in: "dm" }, h)` | every message the app hears; `in` is `dm`, `thread`, `channel` or `post` | `message`, `channel` | is posted as the reply |
+| `app.reaction(h)`, `app.reaction({ emoji: "👀" }, h)` | a reaction added to a message | `message`, `channel`, `reaction` | is posted as the reply |
 | `app.command("/name", h)` | a slash command | `command`, `respond` | answers the command |
 | `app.action("id" \| /re/, h)` | a click on a control | `action`, `actions`, `respond` | goes to `respond` |
 | `app.event("name", h)` | any event: `message_updated`, `message_deleted`, `reaction_deleted`, `user_created`, `user_deleted`, … | | is ignored |
@@ -59,7 +59,7 @@ Every handler's context has `event`, `user` (who did it), `env`, `client` (the w
 - **`status("Thinking…")`** shows a line under the conversation; `status(null)` clears it.
 - **`draft()`** opens a live draft: `update({ text })` with the whole text so far, then `finish(text)` posts it in the draft's place. Drafts notify no one; the finished post notifies once.
 - **`respond(text | { text, blocks, response_type, replace_original })`** answers a command or a click through its `response_url`, which allows five answers in 30 minutes.
-- **`client`** is the typed API: `client.post(roomId, { text })`, `client.allMessages(roomId)`, `client.react(messageId, "👍")`, and the rest of Sabha's [API](#the-api).
+- **`client`** is the typed API: `client.post(channelId, { text })`, `client.allMessages(channelId)`, `client.react(messageId, "👍")`, and the rest of Sabha's [API](#the-api).
 
 ## Answering in time
 
@@ -115,7 +115,7 @@ The object stays awake while the socket is open. One such app fits Cloudflare's 
 
 ```ts
 app.schedule("morning", { at: "09:00", timezone: "Europe/London", days: "mon-fri", retryFor: 10 }, async ({ client, runKey, stableId }) => {
-  await client.post(roomId, { text: "Good morning", clientMessageId: await stableId(runKey) });
+  await client.post(channelId, { text: "Good morning", clientMessageId: await stableId(runKey) });
 });
 ```
 
@@ -130,7 +130,7 @@ A Worker's `waitUntil` allows 30 s. For longer work, hand it to a [Queue](https:
 
 ```ts
 app.command("/report", async ({ command, env }) => {
-  await env.REPORTS.send({ roomId: command.room_id, responseUrl: command.response_url });
+  await env.REPORTS.send({ channelId: command.channel_id, responseUrl: command.response_url });
   return { response_type: "ephemeral", text: "Working on it…" };
 });
 ```

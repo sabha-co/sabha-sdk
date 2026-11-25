@@ -8,12 +8,12 @@ export interface Update {
 }
 
 /**
- * The app's own posts in the room at or after `since`, oldest first: today's prompt, then its
+ * The app's own posts in the channel at or after `since`, oldest first: today's prompt, then its
  * digest once that's out. Read, never posted, so a prompt that didn't go out is never sent late.
  */
-export async function todaysPosts(client: SabhaClient, roomId: number, appId: number, since: number): Promise<Message[]> {
+export async function todaysPosts(client: SabhaClient, channelId: number, appId: number, since: number): Promise<Message[]> {
   const posts: Message[] = [];
-  for await (const message of client.allMessages(roomId)) {
+  for await (const message of client.allMessages(channelId)) {
     if (Date.parse(message.created_at) < since) break;
     if (message.creator.id === appId && !message.thread) posts.unshift(message);
   }
@@ -21,10 +21,10 @@ export async function todaysPosts(client: SabhaClient, roomId: number, appId: nu
 }
 
 /** Each person's replies in the thread, in the order they first replied, leaving out the app's own. */
-export async function readUpdates(client: SabhaClient, threadRoomId: number, appId: number): Promise<Update[]> {
+export async function readUpdates(client: SabhaClient, threadChannelId: number, appId: number): Promise<Update[]> {
   const replies: Message[] = [];
   try {
-    for await (const message of client.allMessages(threadRoomId)) replies.push(message);
+    for await (const message of client.allMessages(threadChannelId)) replies.push(message);
   } catch (error) {
     if (error instanceof SabhaApiError && error.status === 404) return [];
     throw error;

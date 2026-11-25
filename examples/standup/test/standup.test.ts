@@ -10,12 +10,12 @@ const APP = { id: 99, name: "Standup" };
 const ASHA = { id: 7, name: "Asha" };
 const BEN = { id: 8, name: "Ben" };
 const CHEN = { id: 9, name: "Chen" };
-const ROOM = 10;
+const CHANNEL = 10;
 // R18: the standup reads its profile, posts, reacts, and reads messages; nothing else.
 const ALLOWED = [
   /^GET \/api\/v1\/me$/,
-  /^POST \/api\/v1\/rooms\/\d+\/messages$/,
-  /^GET \/api\/v1\/rooms\/\d+\/messages$/,
+  /^POST \/api\/v1\/channels\/\d+\/messages$/,
+  /^GET \/api\/v1\/channels\/\d+\/messages$/,
   /^POST \/api\/v1\/messages\/\d+\/reactions$/,
 ];
 
@@ -25,7 +25,7 @@ const standupEnv: StandupEnv = {
   SABHA_API_KEY: KEY,
   SABHA_SIGNING_SECRET: SECRET,
   TRANSPORT: "webhook",
-  STANDUP_ROOM_ID: String(ROOM),
+  STANDUP_CHANNEL_ID: String(CHANNEL),
   STANDUP_TIMEZONE: "Europe/London",
   STANDUP_DAYS: "mon-fri",
   STANDUP_PROMPT_AT: "09:00",
@@ -47,14 +47,14 @@ function setup(overrides: Partial<StandupEnv> = {}) {
     await worker.scheduled!(createScheduledController({ scheduledTime: at }), { ...standupEnv, ...overrides }, ctx);
     await waitOnExecutionContext(ctx);
   };
-  // Sabha's webhook delivery of a reply in a thread, as the room it sits in sees it.
+  // Sabha's webhook delivery of a reply in a thread, as the channel it sits in sees it.
   const deliver = async (reply: FakeMessage) => {
     const parent = sabha.messages.find((message) => message.id === reply.parent_message_id)!;
     const payload = messageEvent({
       mentions_app: false,
-      room: { id: reply.room_id, name: null, type: "Thread", has_app: true, members: 5, messages_url: `https://sabha.test/api/v1/rooms/${reply.room_id}/messages` },
+      channel: { id: reply.channel_id, name: null, type: "Thread", has_app: true, members: 5, messages_url: `https://sabha.test/api/v1/channels/${reply.channel_id}/messages` },
       user: { ...reply.creator, role: "member", url: `https://sabha.test/users/${reply.creator.id}` },
-      message: { id: reply.id, created_at: reply.created_at, thread: { id: reply.room_id, parent_message_id: parent.id, parent_room_id: parent.room_id } },
+      message: { id: reply.id, created_at: reply.created_at, thread: { id: reply.channel_id, parent_message_id: parent.id, parent_channel_id: parent.channel_id } },
     });
     const ctx = createExecutionContext();
     const request = (await signedDelivery({ secret: SECRET, payload })) as Parameters<NonNullable<typeof worker.fetch>>[0];
@@ -62,7 +62,7 @@ function setup(overrides: Partial<StandupEnv> = {}) {
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(200);
   };
-  const posts = () => sabha.visible(ROOM).filter((message) => message.creator.id === APP.id);
+  const posts = () => sabha.visible(CHANNEL).filter((message) => message.creator.id === APP.id);
   const prompt = () => posts()[0]!;
   const digest = () => posts().find((message) => message.body.includes("Read the thread"));
   return { sabha, tick, deliver, posts, prompt, digest, errors };
@@ -168,9 +168,9 @@ describe("the digest", () => {
     expect(quoted).not.toMatch(/@\{|https?:\/\/|<a /);
   });
 
-  it("isn't posted when no prompt went out today, even with yesterday's in the room", async () => {
+  it("isn't posted when no prompt went out today, even with yesterday's in the channel", async () => {
     const { sabha, tick, posts } = setup();
-    sabha.seed({ room_id: ROOM, body: "Yesterday's prompt", creator: APP, at: Date.parse("2026-11-13T09:00:00Z") });
+    sabha.seed({ channel_id: CHANNEL, body: "Yesterday's prompt", creator: APP, at: Date.parse("2026-11-13T09:00:00Z") });
     await tick("2026-11-16T17:00:00Z");
     expect(posts()).toHaveLength(1);
   });

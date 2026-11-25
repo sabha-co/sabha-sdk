@@ -2,7 +2,7 @@
 
 This is the standup example for the Sabha SDK, a whole app to copy and deploy. The SDK's rules are in the SDK's `AGENTS.md`; these are the standup's own.
 
-- The bot keeps no storage. It finds today's prompt by reading the room (`findPrompt`), and the replies by reading the thread (`readUpdates`). Don't add a KV, D1 or Durable Object store for them.
+- The bot keeps no storage. It finds today's prompt by reading the channel (`findPrompt`), and the replies by reading the thread (`readUpdates`). Don't add a KV, D1 or Durable Object store for them.
 - Both schedules post with `stableId(runKey)` and use `retryFor: 10`. Keep both: together they make a missed tick recoverable and a repeated tick harmless.
 - The digest never posts a prompt. If none went out today, it logs and stops.
 - Quote member text with `inert` before it goes into the digest, so it can't mention anyone or turn into a link.

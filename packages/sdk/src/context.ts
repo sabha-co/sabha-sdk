@@ -5,7 +5,7 @@ import type {
   EventMessage,
   EventName,
   EventOf,
-  EventRoom,
+  EventChannel,
   MessageEvent,
   ReactionEvent,
 } from "./events.js";
@@ -73,9 +73,9 @@ export interface BaseContext<N extends EventName, Env extends SabhaEnv> {
 type Respond = { respond(response: InteractionResponse | string): Promise<unknown> };
 
 type Extras<N extends EventName> = N extends MessageEvent["event"]
-  ? { message: EventMessage; room: EventRoom }
+  ? { message: EventMessage; channel: EventChannel }
   : N extends ReactionEvent["event"]
-    ? { message: EventMessage; room: EventRoom; reaction: ReactionEvent["reaction"] }
+    ? { message: EventMessage; channel: EventChannel; reaction: ReactionEvent["reaction"] }
     : N extends "command"
       ? { command: CommandEvent } & Respond
       : N extends "block_actions"

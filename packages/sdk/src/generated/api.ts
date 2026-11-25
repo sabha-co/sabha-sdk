@@ -18,6 +18,185 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The channels the app is in, or with joinable, the open channels it could join. */
+        get: operations["channels_index"];
+        put?: never;
+        /** Make a channel, with the app as its creator and first member. */
+        post: operations["channels_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/{channel_id}/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open a live draft where the app's reply will land; post with its id as client_message_id to finish it. */
+        post: operations["drafts_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/{channel_id}/ephemerals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A private reply only one member sees, not saved. */
+        post: operations["ephemerals_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/{channel_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        /** Who is in a channel. */
+        get: operations["members_index"];
+        put?: never;
+        /** Add someone to a channel the app made. */
+        post: operations["members_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/{channel_id}/members/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove someone from a channel the app made. */
+        delete: operations["members_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/{channel_id}/membership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The app joins an open channel. */
+        post: operations["memberships_create"];
+        /** The app leaves a channel. */
+        delete: operations["memberships_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/{channel_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        /** A channel's messages, newest first, a page at a time. */
+        get: operations["messages_index"];
+        put?: never;
+        /** Post a message, or a reply in the thread under parent_message_id. */
+        post: operations["messages_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/{channel_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Show a status line where the app's reply will land; blank clears it. */
+        put: operations["statuses_update_put"];
+        post?: never;
+        /** Clear the app's status there. */
+        delete: operations["statuses_destroy"];
+        options?: never;
+        head?: never;
+        /** Show a status line where the app's reply will land; blank clears it. */
+        patch: operations["statuses_update_patch"];
+        trace?: never;
+    };
+    "/api/v1/channels/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        /** One channel the app can reach. */
+        get: operations["channels_show"];
+        /** Rename a channel the app made. */
+        put: operations["channels_update_put"];
+        post?: never;
+        /** Delete a channel the app made. */
+        delete: operations["channels_destroy"];
+        options?: never;
+        head?: never;
+        /** Rename a channel the app made. */
+        patch: operations["channels_update_patch"];
+        trace?: never;
+    };
     "/api/v1/direct_messages": {
         parameters: {
             query?: never;
@@ -178,13 +357,13 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Change the app's name or where its events go. */
+        /** Change the app's name, where its events go, or whether people can message it. */
         put: operations["profiles_update_put"];
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** Change the app's name or where its events go. */
+        /** Change the app's name, where its events go, or whether people can message it. */
         patch: operations["profiles_update_patch"];
         trace?: never;
     };
@@ -226,185 +405,6 @@ export interface paths {
         patch: operations["profiles_icons_update_patch"];
         trace?: never;
     };
-    "/api/v1/rooms": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The rooms the app is in, or with joinable, the open rooms it could join. */
-        get: operations["rooms_index"];
-        put?: never;
-        /** Make a room, with the app as its creator and first member. */
-        post: operations["rooms_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/rooms/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["Id"];
-            };
-            cookie?: never;
-        };
-        /** One room the app can reach. */
-        get: operations["rooms_show"];
-        /** Rename a room the app made. */
-        put: operations["rooms_update_put"];
-        post?: never;
-        /** Delete a room the app made. */
-        delete: operations["rooms_destroy"];
-        options?: never;
-        head?: never;
-        /** Rename a room the app made. */
-        patch: operations["rooms_update_patch"];
-        trace?: never;
-    };
-    "/api/v1/rooms/{room_id}/drafts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Open a live draft where the app's reply will land; post with its id as client_message_id to finish it. */
-        post: operations["drafts_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/rooms/{room_id}/ephemerals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** A private reply only one member sees, not saved. */
-        post: operations["ephemerals_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/rooms/{room_id}/members": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        /** Who is in a room. */
-        get: operations["members_index"];
-        put?: never;
-        /** Add someone to a room the app made. */
-        post: operations["members_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/rooms/{room_id}/members/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["Id"];
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Remove someone from a room the app made. */
-        delete: operations["members_destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/rooms/{room_id}/membership": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** The app joins an open room. */
-        post: operations["memberships_create"];
-        /** The app leaves a room. */
-        delete: operations["memberships_destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/rooms/{room_id}/messages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        /** A room's messages, newest first, a page at a time. */
-        get: operations["messages_index"];
-        put?: never;
-        /** Post a message, or a reply in the thread under parent_message_id. */
-        post: operations["messages_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/rooms/{room_id}/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /** Show a status line where the app's reply will land; blank clears it. */
-        put: operations["statuses_update_put"];
-        post?: never;
-        /** Clear the app's status there. */
-        delete: operations["statuses_destroy"];
-        options?: never;
-        head?: never;
-        /** Show a status line where the app's reply will land; blank clears it. */
-        patch: operations["statuses_update_patch"];
-        trace?: never;
-    };
     "/api/v1/search": {
         parameters: {
             query?: never;
@@ -429,7 +429,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The people the app can see, or a room's with room_id. */
+        /** The people the app can see, or a channel's with channel_id. */
         get: operations["users_index"];
         put?: never;
         post?: never;
@@ -448,7 +448,7 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** One person, with their profile, found among a room's people with room_id. */
+        /** One person, with their profile, found among a channel's people with channel_id. */
         get: operations["users_show"];
         put?: never;
         post?: never;
@@ -488,7 +488,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Post into the webhook's room (Slack's incoming webhooks). The token is the URL's own; no key. */
+        /** Post into the webhook's channel (Slack's incoming webhooks). The token is the URL's own; no key. */
         post: operations["incoming_webhooks_create"];
         delete?: never;
         options?: never;
@@ -661,6 +661,10 @@ export interface components {
                 type: string;
                 value?: string;
             }[];
+            channel: {
+                id: number;
+                name: string | null;
+            };
             /** @constant */
             event: "block_actions";
             id: string;
@@ -669,10 +673,6 @@ export interface components {
                 url: string;
             };
             response_url: string;
-            room: {
-                id: number;
-                name: string | null;
-            };
             user: {
                 id: number;
                 name: string;
@@ -686,15 +686,22 @@ export interface components {
             markdown: string;
             plain: string;
         };
+        Channel: {
+            id: number;
+            messages_url: string;
+            name: string | null;
+            /** @description Open, Closed, Forum, Direct, Thread or Post. */
+            type: string;
+        };
         CommandEvent: {
+            channel_id: number;
+            channel_name: string | null;
             /** @description The command with its slash, such as /deploy. */
             command: string;
             /** @constant */
             event: "command";
             id: string;
             response_url: string;
-            room_id: number;
-            room_name: string | null;
             text: string;
             thread?: components["schemas"]["Thread"];
             user_id: number;
@@ -710,6 +717,15 @@ export interface components {
             /** @description With a refused command list, why each entry was refused. */
             refusals?: unknown[];
         };
+        EventChannel: {
+            /** @description Whether the app is a member. */
+            has_app: boolean;
+            id: number;
+            members: number;
+            messages_url: string;
+            name: string | null;
+            type: string;
+        };
         EventMessage: {
             attachment: components["schemas"]["Attachment"];
             blocks?: components["schemas"]["Blocks"];
@@ -718,19 +734,11 @@ export interface components {
             has_attachment: boolean;
             id: number;
             mentionees: components["schemas"]["UserRef"][];
+            metadata?: components["schemas"]["Metadata"];
             replies: components["schemas"]["Replies"];
             thread: components["schemas"]["Thread"];
             updated_at: string;
             url: string;
-        };
-        EventRoom: {
-            /** @description Whether the app is a member. */
-            has_app: boolean;
-            id: number;
-            members: number;
-            messages_url: string;
-            name: string | null;
-            type: string;
         };
         EventUser: {
             id: number;
@@ -742,15 +750,17 @@ export interface components {
             attachment: components["schemas"]["Attachment"];
             blocks?: components["schemas"]["Blocks"];
             body: components["schemas"]["Body"];
+            channel_id: number;
             created_at: string;
             creator: components["schemas"]["UserRef"];
             id: number;
+            metadata?: components["schemas"]["Metadata"];
             replies: components["schemas"]["Replies"];
-            room_id: number;
             thread: components["schemas"]["Thread"];
             url: string;
         };
         MessageEvent: {
+            channel: components["schemas"]["EventChannel"];
             /** @enum {unknown} */
             event: "message_created" | "message_updated" | "message_deleted";
             /** @description The event's id: the same on the WebSocket, the webhook and every retry. Deduplicate on it. */
@@ -758,27 +768,35 @@ export interface components {
             /** @description On message_created only: whether it names the app itself, not just @everyone. */
             mentions_app?: boolean;
             message: components["schemas"]["EventMessage"];
-            room: components["schemas"]["EventRoom"];
             user: components["schemas"]["EventUser"];
         };
         MessageWithMentionees: {
             attachment: components["schemas"]["Attachment"];
             blocks?: components["schemas"]["Blocks"];
             body: components["schemas"]["Body"];
+            channel_id: number;
             created_at: string;
             creator: components["schemas"]["UserRef"];
             id: number;
             mentionees: components["schemas"]["UserRef"][];
+            metadata?: components["schemas"]["Metadata"];
             replies: components["schemas"]["Replies"];
-            room_id: number;
             thread: components["schemas"]["Thread"];
             url: string;
         };
+        /** @description Slack's message metadata, present only on a message that has some. Only the app that posted the message writes it; any app that can read the message reads it, so keep to ids and references, never secrets or personal data. The event_type alert is Sabha's own and its payload is checked: status (firing or resolved) and title are required, severity, service, url and key are optional, and any other key is refused. */
+        Metadata: {
+            /** @description The app's own fields: at most 8 KB as JSON, nested at most 10 levels. */
+            event_payload: Record<string, never>;
+            /** @description 1 to 64 letters, digits, _ or -. */
+            event_type: string;
+        };
         Posted: {
+            channel_id: number;
             id: number;
-            room_id: number;
         };
         ReactionEvent: {
+            channel: components["schemas"]["EventChannel"];
             /** @enum {unknown} */
             event: "reaction_created" | "reaction_deleted";
             /** @description The event's id: the same on the WebSocket, the webhook and every retry. Deduplicate on it. */
@@ -788,26 +806,18 @@ export interface components {
                 body: string;
                 id: number;
             };
-            room: components["schemas"]["EventRoom"];
             user: components["schemas"]["EventUser"];
         };
         /** @description The thread under a message, or null when it has none. */
         Replies: {
+            channel_id: number;
             count: number;
-            room_id: number;
         } | null;
-        Room: {
-            id: number;
-            messages_url: string;
-            name: string | null;
-            /** @description Open, Closed, Forum, Direct, Thread or Post. */
-            type: string;
-        };
-        /** @description Where a message in a thread sits, or null for a message in the room itself. */
+        /** @description Where a message in a thread sits, or null for a message in the channel itself. */
         Thread: {
             id: number;
+            parent_channel_id: number;
             parent_message_id: number;
-            parent_room_id: number;
         } | null;
         User: {
             bot: boolean;
@@ -842,6 +852,15 @@ export interface components {
         };
     };
     responses: {
+        /** @description The channel. */
+        Channel: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Channel"];
+            };
+        };
         /** @description The app's slash commands. */
         Commands: {
             headers: {
@@ -865,7 +884,7 @@ export interface components {
             };
             content: {
                 "application/json": {
-                    room: {
+                    channel: {
                         id: number;
                     };
                 };
@@ -935,15 +954,6 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description The room. */
-        Room: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["Room"];
-            };
-        };
         /** @description The key is missing, wrong or revoked. */
         Unauthorized: {
             headers: {
@@ -982,13 +992,13 @@ export interface components {
         };
     };
     parameters: {
+        ChannelId: number;
         Id: number;
         MessageId: number;
         /** @description From 1. */
         Page: number;
         /** @description 1 to 100; 50 by default. */
         PerPage: number;
-        RoomId: number;
         WebhookToken: string;
     };
     requestBodies: never;
@@ -1231,8 +1241,8 @@ export interface operations {
     autocompletable_users_index: {
         parameters: {
             query?: {
+                channel_id?: number;
                 query?: string;
-                room_id?: number;
             };
             header?: never;
             path?: never;
@@ -1254,6 +1264,604 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    channels_index: {
+        parameters: {
+            query?: {
+                joinable?: boolean;
+                /** @description From 1. */
+                page?: components["parameters"]["Page"];
+                /** @description 1 to 100; 50 by default. */
+                per_page?: components["parameters"]["PerPage"];
+                /** @description Channels whose names match. */
+                query?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The channels. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Channel"][];
+                };
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    channels_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** @enum {unknown} */
+                    type: "open" | "closed";
+                };
+            };
+        };
+        responses: {
+            201: components["responses"]["Channel"];
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["Invalid"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    drafts_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description A UUID the app chooses for the draft. Opening it again shows the same shell. */
+                    draft_id: string;
+                    parent_message_id?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The draft is showing. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        draft_id: string;
+                    };
+                };
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Invalid"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    ephemerals_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    blocks?: components["schemas"]["Blocks"];
+                    body?: string;
+                    parent_message_id?: number;
+                    user_id: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Delivered to the member, if they're looking. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Invalid"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    members_index: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The members. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: number;
+                        name: string;
+                        role: string;
+                    }[];
+                };
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    members_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    user_id: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Added. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRef"];
+                };
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Invalid"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    members_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Invalid"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    memberships_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: components["responses"]["Channel"];
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Invalid"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    memberships_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Left. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Invalid"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    messages_index: {
+        parameters: {
+            query?: {
+                /** @description An ISO8601 time. */
+                after?: string;
+                /** @description An ISO8601 time, or the next_cursor of the page before. */
+                before?: string;
+                limit?: number;
+                /** @description Only messages whose metadata has this event_type. */
+                metadata_type?: string;
+            };
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of messages. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        has_more: boolean;
+                        next_cursor: string | null;
+                        results: components["schemas"]["Message"][];
+                    };
+                };
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Invalid"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    messages_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    blocks?: components["schemas"]["Blocks"];
+                    /** @description HTML or plain text. */
+                    body?: string;
+                    client_message_id?: string;
+                    /** @description The message's metadata, with the limits Metadata lists. Metadata alone isn't a message: a post still needs body, text or blocks. */
+                    metadata?: {
+                        event_payload?: Record<string, never>;
+                        event_type?: string;
+                    };
+                    parent_message_id?: number;
+                    /** @description Slack mrkdwn, instead of body. */
+                    text?: string;
+                };
+                "multipart/form-data": {
+                    attachment?: string;
+                    body?: string;
+                    client_message_id?: string;
+                    parent_message_id?: number;
+                };
+                "text/html": string;
+                "text/plain": string;
+            };
+        };
+        responses: {
+            /** @description A repeat of a post with the same client_message_id; nothing new was posted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Posted"];
+                };
+            };
+            201: components["responses"]["Posted"];
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Invalid"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    statuses_update_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    parent_message_id?: number;
+                    status?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The status is showing. Setting it again keeps the same draft. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        draft_id: string;
+                    };
+                };
+            };
+            /** @description A blank status cleared it. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Invalid"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    statuses_destroy: {
+        parameters: {
+            query?: {
+                parent_message_id?: number;
+            };
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cleared, or there was none. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    statuses_update_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: components["parameters"]["ChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    parent_message_id?: number;
+                    status?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The status is showing. Setting it again keeps the same draft. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        draft_id: string;
+                    };
+                };
+            };
+            /** @description A blank status cleared it. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Invalid"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    channels_show: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["Channel"];
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    channels_update_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    name?: string;
+                };
+            };
+        };
+        responses: {
+            200: components["responses"]["Channel"];
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Invalid"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    channels_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Invalid"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    channels_update_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    name?: string;
+                };
+            };
+        };
+        responses: {
+            200: components["responses"]["Channel"];
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Invalid"];
             503: components["responses"]["Offline"];
         };
     };
@@ -1420,7 +2028,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description Posted in the room. */
+            /** @description Posted in the channel. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -1473,9 +2081,11 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** @description Whether people can message the app. Off until the app turns it on. */
+                        direct_messages: boolean;
                         id: number;
                         name: string;
-                        /** @description What an admin allows the key, in the order Settings shows them, from post, read_messages, read_directory, dm and manage_rooms. New permissions may be added. */
+                        /** @description What an admin allows the key, in the order Settings shows them, from post, read_messages, read_directory, dm and manage_channels. New permissions may be added. */
                         permissions: string[];
                         workspace: {
                             name: string;
@@ -1533,6 +2143,11 @@ export interface operations {
                 "application/json": {
                     blocks?: components["schemas"]["Blocks"];
                     body?: string;
+                    /** @description New metadata, with the limits Metadata lists. Leave it out to keep the message's, send {} to clear it. An edit of only metadata keeps the body. */
+                    metadata?: {
+                        event_payload?: Record<string, never>;
+                        event_type?: string;
+                    };
                 };
                 "text/plain": string;
             };
@@ -1548,6 +2163,7 @@ export interface operations {
                         blocks: unknown[] | null;
                         body: components["schemas"]["Body"];
                         id: number;
+                        metadata?: components["schemas"]["Metadata"];
                     };
                 };
             };
@@ -1600,6 +2216,11 @@ export interface operations {
                 "application/json": {
                     blocks?: components["schemas"]["Blocks"];
                     body?: string;
+                    /** @description New metadata, with the limits Metadata lists. Leave it out to keep the message's, send {} to clear it. An edit of only metadata keeps the body. */
+                    metadata?: {
+                        event_payload?: Record<string, never>;
+                        event_type?: string;
+                    };
                 };
                 "text/plain": string;
             };
@@ -1615,6 +2236,7 @@ export interface operations {
                         blocks: unknown[] | null;
                         body: components["schemas"]["Body"];
                         id: number;
+                        metadata?: components["schemas"]["Metadata"];
                     };
                 };
             };
@@ -1775,21 +2397,22 @@ export interface operations {
         requestBody?: {
             content: {
                 "application/json": {
-                    everything_url?: string | null;
-                    mentions_url?: string | null;
+                    /** @description True when the app holds conversations, so people get a Message button and can DM it. An app that only posts leaves it off. */
+                    direct_messages?: boolean;
                     name?: string;
                     webhook_url?: string | null;
                 };
             };
         };
         responses: {
-            /** @description The app's name and webhook. */
+            /** @description The app's name, webhook, and whether people can message it. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
+                        direct_messages: boolean;
                         name: string;
                         webhook_url: string | null;
                     };
@@ -1813,21 +2436,22 @@ export interface operations {
         requestBody?: {
             content: {
                 "application/json": {
-                    everything_url?: string | null;
-                    mentions_url?: string | null;
+                    /** @description True when the app holds conversations, so people get a Message button and can DM it. An app that only posts leaves it off. */
+                    direct_messages?: boolean;
                     name?: string;
                     webhook_url?: string | null;
                 };
             };
         };
         responses: {
-            /** @description The app's name and webhook. */
+            /** @description The app's name, webhook, and whether people can message it. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
+                        direct_messages: boolean;
                         name: string;
                         webhook_url: string | null;
                     };
@@ -2013,597 +2637,6 @@ export interface operations {
             503: components["responses"]["Offline"];
         };
     };
-    rooms_index: {
-        parameters: {
-            query?: {
-                joinable?: boolean;
-                /** @description From 1. */
-                page?: components["parameters"]["Page"];
-                /** @description 1 to 100; 50 by default. */
-                per_page?: components["parameters"]["PerPage"];
-                /** @description Rooms whose names match. */
-                query?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The rooms. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Room"][];
-                };
-            };
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    rooms_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    name: string;
-                    /** @enum {unknown} */
-                    type: "open" | "closed";
-                };
-            };
-        };
-        responses: {
-            201: components["responses"]["Room"];
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            422: components["responses"]["Invalid"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    rooms_show: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["Id"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: components["responses"]["Room"];
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    rooms_update_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["Id"];
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    name?: string;
-                };
-            };
-        };
-        responses: {
-            200: components["responses"]["Room"];
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["Invalid"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    rooms_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["Id"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Deleted. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["Invalid"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    rooms_update_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["Id"];
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    name?: string;
-                };
-            };
-        };
-        responses: {
-            200: components["responses"]["Room"];
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["Invalid"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    drafts_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description A UUID the app chooses for the draft. Opening it again shows the same shell. */
-                    draft_id: string;
-                    parent_message_id?: number;
-                };
-            };
-        };
-        responses: {
-            /** @description The draft is showing. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        draft_id: string;
-                    };
-                };
-            };
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["Invalid"];
-            429: components["responses"]["RateLimited"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    ephemerals_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    blocks?: components["schemas"]["Blocks"];
-                    body?: string;
-                    parent_message_id?: number;
-                    user_id: number;
-                };
-            };
-        };
-        responses: {
-            /** @description Delivered to the member, if they're looking. */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["Invalid"];
-            429: components["responses"]["RateLimited"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    members_index: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The members. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        id: number;
-                        name: string;
-                        role: string;
-                    }[];
-                };
-            };
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    members_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    user_id: number;
-                };
-            };
-        };
-        responses: {
-            /** @description Added. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserRef"];
-                };
-            };
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["Invalid"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    members_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["Id"];
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Removed. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["Invalid"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    memberships_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            201: components["responses"]["Room"];
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["Invalid"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    memberships_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Left. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["Invalid"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    messages_index: {
-        parameters: {
-            query?: {
-                /** @description An ISO8601 time. */
-                after?: string;
-                /** @description An ISO8601 time, or the next_cursor of the page before. */
-                before?: string;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description A page of messages. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        has_more: boolean;
-                        next_cursor: string | null;
-                        results: components["schemas"]["Message"][];
-                    };
-                };
-            };
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["Invalid"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    messages_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    blocks?: components["schemas"]["Blocks"];
-                    /** @description HTML or plain text. */
-                    body?: string;
-                    client_message_id?: string;
-                    parent_message_id?: number;
-                    /** @description Slack mrkdwn, instead of body. */
-                    text?: string;
-                };
-                "multipart/form-data": {
-                    attachment?: string;
-                    body?: string;
-                    client_message_id?: string;
-                    parent_message_id?: number;
-                };
-                "text/html": string;
-                "text/plain": string;
-            };
-        };
-        responses: {
-            /** @description A repeat of a post with the same client_message_id; nothing new was posted. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Posted"];
-                };
-            };
-            201: components["responses"]["Posted"];
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["Invalid"];
-            429: components["responses"]["RateLimited"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
-    statuses_update_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    parent_message_id?: number;
-                    status?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description The status is showing. Setting it again keeps the same draft. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        draft_id: string;
-                    };
-                };
-            };
-            /** @description A blank status cleared it. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["Invalid"];
-            429: components["responses"]["RateLimited"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    statuses_destroy: {
-        parameters: {
-            query?: {
-                parent_message_id?: number;
-            };
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Cleared, or there was none. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            429: components["responses"]["RateLimited"];
-            503: components["responses"]["Offline"];
-        };
-    };
-    statuses_update_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                room_id: components["parameters"]["RoomId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    parent_message_id?: number;
-                    status?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description The status is showing. Setting it again keeps the same draft. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        draft_id: string;
-                    };
-                };
-            };
-            /** @description A blank status cleared it. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            301: components["responses"]["Moved"];
-            308: components["responses"]["Moved"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["Invalid"];
-            429: components["responses"]["RateLimited"];
-            503: components["responses"]["Offline"];
-        };
-    };
     searches_show: {
         parameters: {
             query: {
@@ -2611,10 +2644,10 @@ export interface operations {
                 /** @description Only these authors. */
                 "author_ids[]"?: number[];
                 before?: string;
+                /** @description Only these channels. */
+                "channel_ids[]"?: number[];
                 limit?: number;
                 q: string;
-                /** @description Only these rooms. */
-                "room_ids[]"?: number[];
             };
             header?: never;
             path?: never;
@@ -2633,13 +2666,13 @@ export interface operations {
                         next_cursor: string | null;
                         results: {
                             body: components["schemas"]["Body"];
-                            created_at: string;
-                            creator: components["schemas"]["UserRef"];
-                            id: number;
-                            room: {
+                            channel: {
                                 id: number;
                                 name: string | null;
                             };
+                            created_at: string;
+                            creator: components["schemas"]["UserRef"];
+                            id: number;
                         }[];
                     };
                 };
@@ -2656,11 +2689,11 @@ export interface operations {
     users_index: {
         parameters: {
             query?: {
+                channel_id?: number;
                 /** @description From 1. */
                 page?: components["parameters"]["Page"];
                 /** @description 1 to 100; 50 by default. */
                 per_page?: components["parameters"]["PerPage"];
-                room_id?: number;
             };
             header?: never;
             path?: never;
@@ -2688,7 +2721,7 @@ export interface operations {
     users_show: {
         parameters: {
             query?: {
-                room_id?: number;
+                channel_id?: number;
             };
             header?: never;
             path: {

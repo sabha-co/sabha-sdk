@@ -87,10 +87,10 @@ describe("handleWebhook: routing", () => {
     const { app, deliver } = setup();
     const inThread = vi.fn();
     app.message({ in: "thread" }, inThread);
-    const room = messageEvent().room;
-    await deliver(messageEvent({ room: { ...room, type: "Post" }, message: { id: 3 } }));
+    const channel = messageEvent().channel;
+    await deliver(messageEvent({ channel: { ...channel, type: "Post" }, message: { id: 3 } }));
     expect(inThread).not.toHaveBeenCalled();
-    await deliver(messageEvent({ room: { ...room, type: "Thread" }, message: { id: 4 } }));
+    await deliver(messageEvent({ channel: { ...channel, type: "Thread" }, message: { id: 4 } }));
     expect(inThread).toHaveBeenCalledOnce();
   });
 
@@ -358,15 +358,15 @@ describe("handleWebhook: retries and repeats", () => {
 });
 
 describe("context helpers", () => {
-  it("say posts in the event's room, or its thread when asked", async () => {
+  it("say posts in the event's channel, or its thread when asked", async () => {
     const { app, deliver, sabha, settle } = setup();
     app.mention(async ({ say }) => {
-      await say({ body: "in the room" });
+      await say({ body: "in the channel" });
       await say({ body: "in the thread", thread: true });
     });
     await deliver(messageEvent());
     await settle();
-    expect(posts(sabha).map((call) => call.path)).toEqual(["/api/v1/rooms/10/messages", "/api/v1/rooms/10/messages"]);
+    expect(posts(sabha).map((call) => call.path)).toEqual(["/api/v1/channels/10/messages", "/api/v1/channels/10/messages"]);
     expect(posts(sabha)[1]!.body).toMatchObject({ parent_message_id: 501 });
   });
 
@@ -389,9 +389,9 @@ describe("context helpers", () => {
     });
     await deliver(messageEvent());
     await settle();
-    const opened = sabha.calls.find((call) => call.path === "/api/v1/rooms/10/drafts")!.body as { draft_id: string };
+    const opened = sabha.calls.find((call) => call.path === "/api/v1/channels/10/drafts")!.body as { draft_id: string };
     expect(posts(sabha)[0]!.body).toMatchObject({ client_message_id: opened.draft_id });
-    expect(sabha.calls.some((call) => call.path === "/api/v1/rooms/10/status" && call.method === "PUT")).toBe(true);
+    expect(sabha.calls.some((call) => call.path === "/api/v1/channels/10/status" && call.method === "PUT")).toBe(true);
   });
 
   it("reaction handlers can filter by emoji", async () => {

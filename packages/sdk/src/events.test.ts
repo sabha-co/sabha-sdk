@@ -11,17 +11,17 @@ describe("events", () => {
     }
     expectTypeOf<EventOf<"command">["response_url"]>().toBeString();
     expectTypeOf<EventOf<"reaction_created">["reaction"]["body"]>().toBeString();
-    // @ts-expect-error a command has no room object
-    expectTypeOf<EventOf<"command">["room"]>();
+    // @ts-expect-error a command has no channel object
+    expectTypeOf<EventOf<"command">["channel"]>();
   });
 
-  it("reads mentions_app at the top level and the place from room.type", () => {
-    const event = messageEvent({ room: { ...messageEvent().room, type: "Thread" } });
+  it("reads mentions_app at the top level and the place from channel.type", () => {
+    const event = messageEvent({ channel: { ...messageEvent().channel, type: "Thread" } });
     expect(event.mentions_app).toBe(true);
-    expect(placeOf(event.room)).toBe("thread");
+    expect(placeOf(event.channel)).toBe("thread");
     expect(placeOf({ type: "Direct" })).toBe("dm");
     expect(placeOf({ type: "Post" })).toBe("post");
-    expect(placeOf({ type: "Closed" })).toBe("room");
+    expect(placeOf({ type: "Closed" })).toBe("channel");
   });
 
   it("keys each event by Sabha's id, so two edits in one second stay two events", () => {
@@ -41,9 +41,9 @@ describe("events", () => {
   });
 
   it("refuses payloads missing what the SDK relies on, and passes unknown events through", () => {
-    expect(() => parseEvent({ event: "message_created", room: { id: 1 } })).toThrow(EventShapeError);
+    expect(() => parseEvent({ event: "message_created", channel: { id: 1 } })).toThrow(EventShapeError);
     expect(() => parseEvent({ event: "command", id: "x" })).toThrow(EventShapeError);
     expect(() => parseEvent("nope")).toThrow(EventShapeError);
-    expect(parseEvent({ event: "room_archived", room: { id: 1 } })).toMatchObject({ event: "room_archived" });
+    expect(parseEvent({ event: "channel_archived", channel: { id: 1 } })).toMatchObject({ event: "channel_archived" });
   });
 });

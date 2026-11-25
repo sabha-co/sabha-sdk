@@ -40,14 +40,14 @@ describe("mention-reply", () => {
 
   it("says pong to ping in a thread", async () => {
     const sabha = fakeSabha();
-    const thread = { id: 900501, name: "thread", type: "Thread", has_app: true, members: 5, messages_url: "https://sabha.test/api/v1/rooms/900501/messages" };
-    await deliver(mentionReply, messageEvent({ mentions_app: false, room: thread, message: { id: 502, body: { plain: "ping", html: "<p>ping</p>", markdown: "ping" } } }));
+    const thread = { id: 900501, name: "thread", type: "Thread", has_app: true, members: 5, messages_url: "https://sabha.test/api/v1/channels/900501/messages" };
+    await deliver(mentionReply, messageEvent({ mentions_app: false, channel: thread, message: { id: 502, body: { plain: "ping", html: "<p>ping</p>", markdown: "ping" } } }));
     expect(sabha.messages.map((message) => message.body)).toEqual(["pong"]);
   });
 });
 
 describe("command", () => {
-  it("files a ticket and answers in the room", async () => {
+  it("files a ticket and answers in the channel", async () => {
     fakeSabha();
     const response = await deliver(command, commandEvent({ id: "cmd-ticket", text: "printer is on fire" }));
     expect(await response.json()).toEqual({ response_type: "in_channel", text: "Asha filed #1018: printer is on fire" });
@@ -93,7 +93,7 @@ describe("notifier", () => {
     vi.stubGlobal("fetch", async (input: string, init?: RequestInit) =>
       String(input).startsWith("https://feed.test") ? Response.json({ summary: "All systems normal." }) : sabha.fetch(input, init),
     );
-    const notifierEnv = { ...env, ROOM_ID: "10", FEED_URL: "https://feed.test/summary", TIMEZONE: "Europe/London" };
+    const notifierEnv = { ...env, CHANNEL_ID: "10", FEED_URL: "https://feed.test/summary", TIMEZONE: "Europe/London" };
     const runtime = { env: notifierEnv, client: notifier.clientFor(notifierEnv), logger: notifier.logger, transport: "webhook" as const, waitUntil() {} };
     for (const at of ["2026-11-16T08:30:00Z", "2026-11-16T08:31:00Z", "2026-11-16T08:35:00Z"]) await notifier.runSchedules(Date.parse(at), runtime);
     expect(sabha.messages.map((message) => message.body)).toEqual(["All systems normal."]);
@@ -106,7 +106,7 @@ describe("streaming-agent", () => {
     await deliver(streamingAgent, messageEvent({ message: { id: 503 } }));
     const updates = sabha.calls.filter((call) => call.method === "PATCH" && call.path.startsWith("/api/v1/drafts/")).map((call) => (call.body as { text: string }).text);
     expect(updates).toEqual(["Here's", "Here's what", "Here's what I", "Here's what I found."]);
-    const draftId = sabha.calls.find((call) => call.path === "/api/v1/rooms/10/drafts")!.body as { draft_id: string };
+    const draftId = sabha.calls.find((call) => call.path === "/api/v1/channels/10/drafts")!.body as { draft_id: string };
     expect(sabha.messages.at(-1)).toMatchObject({ body: "Here's what I found.", client_message_id: draftId.draft_id });
   });
 });

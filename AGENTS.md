@@ -4,7 +4,7 @@ Instructions for coding agents building a Sabha app with this SDK, or working on
 
 ## Building an app
 
-- Register handlers on one `App`: `mention`, `message`, `command`, `action`, `reaction`, `event`, `schedule`. Read the context's fields (`user`, `message`, `room`, `command`, `action`); don't parse the raw event.
+- Register handlers on one `App`: `mention`, `message`, `command`, `action`, `reaction`, `event`, `schedule`. Read the context's fields (`user`, `message`, `channel`, `command`, `action`); don't parse the raw event.
 - Post through `say`, a handler's return value, or `client.post` with `clientMessageId: await stableId(key)`. Never post without a client message id: a redelivery or a repeated tick would post twice.
 - Answer a command by returning `{ text }` or `{ blocks }` within 3 s. For anything slower, return nothing quick and let the SDK use `respond`, or call `respond` yourself.
 - Never answer a message event with JSON. A message's inline answer is the text the handler returns, and the SDK sends it as `text/plain`.

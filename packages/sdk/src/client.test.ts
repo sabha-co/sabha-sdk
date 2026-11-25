@@ -11,7 +11,7 @@ function recorder(answers: (Response | Error)[] = []) {
     calls.push({ url, init });
     const next = answers.shift();
     if (next instanceof Error) throw next;
-    return next ?? Response.json({ id: 1, room_id: 2 }, { status: 201 });
+    return next ?? Response.json({ id: 1, channel_id: 2 }, { status: 201 });
   };
   const waits: number[] = [];
   const client = new SabhaClient({ baseUrl: "https://sabha.test/", apiKey: key, fetch, sleep: async (ms) => void waits.push(ms) });
@@ -30,7 +30,7 @@ describe("SabhaClient", () => {
   it("sends the key, the verb, the path and the body", async () => {
     const { client, calls } = recorder();
     await client.post(10, { body: "Hi", parentMessageId: 5, clientMessageId: "abc" });
-    expect(calls[0]!.url).toBe("https://sabha.test/api/v1/rooms/10/messages");
+    expect(calls[0]!.url).toBe("https://sabha.test/api/v1/channels/10/messages");
     expect(calls[0]!.init.method).toBe("POST");
     expect(header(calls[0]!.init, "Authorization")).toBe(`Bearer ${key}`);
     expect(JSON.parse(String(calls[0]!.init.body))).toEqual({ body: "Hi", parent_message_id: 5, client_message_id: "abc" });
@@ -43,9 +43,9 @@ describe("SabhaClient", () => {
   });
 
   it("tells a first post from a repeat", async () => {
-    const { client } = recorder([Response.json({ id: 1, room_id: 2 }, { status: 201 }), Response.json({ id: 1, room_id: 2 }, { status: 200 })]);
-    expect(await client.post(2, { body: "x", clientMessageId: "id" })).toEqual({ id: 1, room_id: 2, repeated: false });
-    expect(await client.post(2, { body: "x", clientMessageId: "id" })).toEqual({ id: 1, room_id: 2, repeated: true });
+    const { client } = recorder([Response.json({ id: 1, channel_id: 2 }, { status: 201 }), Response.json({ id: 1, channel_id: 2 }, { status: 200 })]);
+    expect(await client.post(2, { body: "x", clientMessageId: "id" })).toEqual({ id: 1, channel_id: 2, repeated: false });
+    expect(await client.post(2, { body: "x", clientMessageId: "id" })).toEqual({ id: 1, channel_id: 2, repeated: true });
   });
 
   it("prefixes a SaaS workspace and derives its socket URL", async () => {
@@ -83,7 +83,7 @@ describe("SabhaClient", () => {
     await expect(gateway.client.react(5, "👍")).rejects.toBeInstanceOf(SabhaApiError);
     expect(gateway.calls).toHaveLength(1);
 
-    const keyed = recorder([new TypeError("fetch failed"), Response.json({ id: 1, room_id: 2 }, { status: 201 })]);
+    const keyed = recorder([new TypeError("fetch failed"), Response.json({ id: 1, channel_id: 2 }, { status: 201 })]);
     await keyed.client.post(2, { body: "x", clientMessageId: "id" });
     expect(keyed.calls).toHaveLength(2);
   });
@@ -136,12 +136,12 @@ describe("SabhaClient", () => {
     expect(String(error)).not.toContain("very-secret-token");
   });
 
-  it("pages through a room's messages", async () => {
+  it("pages through a channel's messages", async () => {
     const page = (ids: number[], next: string | null) => Response.json({ results: ids.map((id) => ({ id })), has_more: next !== null, next_cursor: next });
     const { client, calls } = recorder([page([3, 2], "c1"), page([1], null)]);
     const ids: number[] = [];
     for await (const message of client.allMessages(10)) ids.push(message.id);
     expect(ids).toEqual([3, 2, 1]);
-    expect(calls[1]!.url).toBe("https://sabha.test/api/v1/rooms/10/messages?limit=200&before=c1");
+    expect(calls[1]!.url).toBe("https://sabha.test/api/v1/channels/10/messages?limit=200&before=c1");
   });
 });

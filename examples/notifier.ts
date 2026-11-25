@@ -1,8 +1,8 @@
-// A notifier: each weekday at 08:30 it fetches a summary and posts it in one room. The stable
+// A notifier: each weekday at 08:30 it fetches a summary and posts it in one channel. The stable
 // id makes a repeated tick return the first post instead of posting again.
 import { App, type SabhaEnv } from "@sabha-co/sdk";
 
-type Env = SabhaEnv & { ROOM_ID: string; FEED_URL: string; TIMEZONE: string };
+type Env = SabhaEnv & { CHANNEL_ID: string; FEED_URL: string; TIMEZONE: string };
 
 export const app = new App<Env>();
 
@@ -10,5 +10,5 @@ app.schedule("morning-summary", { at: "08:30", timezone: (env) => env.TIMEZONE, 
   const response = await fetch(env.FEED_URL);
   if (!response.ok) throw new Error(`the feed answered ${response.status}`);
   const { summary } = (await response.json()) as { summary: string };
-  await client.post(Number(env.ROOM_ID), { text: summary, clientMessageId: await stableId(runKey) });
+  await client.post(Number(env.CHANNEL_ID), { text: summary, clientMessageId: await stableId(runKey) });
 });
