@@ -707,6 +707,7 @@ paths:
         "204": { description: Removed. }
         <<: *keyed
         "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
 
   /api/v1/messages/{message_id}/reactions/{id}:
     parameters: [ { $ref: "#/components/parameters/MessageId" }, { $ref: "#/components/parameters/Id" } ]
