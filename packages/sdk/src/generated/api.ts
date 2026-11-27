@@ -306,7 +306,8 @@ export interface paths {
         put?: never;
         /** React to a message. Reacting again with the same emoji is 422 already_reacted, so a retry can count it done. */
         post: operations["messages_reactions_create"];
-        delete?: never;
+        /** Take back the app's reaction by its emoji, as Slack's reactions.remove does, so the app needn't keep the id. */
+        delete: operations["messages_reactions_destroy_by_body"];
         options?: never;
         head?: never;
         patch?: never;
@@ -403,6 +404,23 @@ export interface paths {
         head?: never;
         /** Set the image the app wears. An admin's upload in Settings → Apps is shown over it. */
         patch: operations["profiles_icons_update_patch"];
+        trace?: never;
+    };
+    "/api/v1/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The app's own reactions, newest first, on messages it can still read. Slack's reactions.list, with each reaction's id. */
+        get: operations["reactions_index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/search": {
@@ -2298,6 +2316,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** @description The emoji, or an app's own text of up to 16 characters. */
                     body: string;
                 };
                 "text/plain": string;
@@ -2322,6 +2341,35 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["Invalid"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    messages_reactions_destroy_by_body: {
+        parameters: {
+            query: {
+                /** @description The emoji, or the app's own text. */
+                body: string;
+            };
+            header?: never;
+            path: {
+                message_id: components["parameters"]["MessageId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             503: components["responses"]["Offline"];
         };
     };
@@ -2634,6 +2682,52 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             422: components["responses"]["Invalid"];
             429: components["responses"]["RateLimited"];
+            503: components["responses"]["Offline"];
+        };
+    };
+    reactions_index: {
+        parameters: {
+            query?: {
+                /** @description An ISO 8601 time. */
+                after?: string;
+                /** @description An ISO 8601 time, or the next_cursor of the page before. */
+                before?: string;
+                /** @description 1 to 200; 50 by default. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of reactions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        has_more: boolean;
+                        next_cursor: string | null;
+                        reactions: {
+                            body: string;
+                            channel: {
+                                id: number;
+                                name: string | null;
+                            };
+                            created_at: string;
+                            id: number;
+                            message_id: number;
+                        }[];
+                    };
+                };
+            };
+            301: components["responses"]["Moved"];
+            308: components["responses"]["Moved"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["Invalid"];
             503: components["responses"]["Offline"];
         };
     };

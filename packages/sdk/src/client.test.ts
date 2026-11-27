@@ -35,11 +35,18 @@ describe("SabhaClient", () => {
     expect(header(calls[0]!.init, "Authorization")).toBe(`Bearer ${key}`);
     expect(JSON.parse(String(calls[0]!.init.body))).toEqual({ body: "Hi", parent_message_id: 5, client_message_id: "abc" });
 
-    // Sabha reads a reaction's whole body as the emoji, so it goes as plain text, not JSON.
+    // A reaction goes as plain text: the whole body is the emoji.
     await client.react(7, "✅");
     expect(calls[1]!.url).toBe("https://sabha.test/api/v1/messages/7/reactions");
     expect(header(calls[1]!.init, "Content-Type")).toMatch(/^text\/plain/);
     expect(calls[1]!.init.body).toBe("✅");
+
+    await client.unreact(7, "✅");
+    expect(calls[2]!.init.method).toBe("DELETE");
+    expect(calls[2]!.url).toBe("https://sabha.test/api/v1/messages/7/reactions?body=%E2%9C%85");
+
+    await client.myReactions({ limit: 2 });
+    expect(calls[3]!.url).toBe("https://sabha.test/api/v1/reactions?limit=2");
   });
 
   it("tells a first post from a repeat", async () => {

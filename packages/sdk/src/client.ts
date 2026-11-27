@@ -92,6 +92,8 @@ export const COVERED_OPERATIONS = {
   messages_reactions_index: "reactions",
   messages_reactions_create: "react",
   messages_reactions_destroy: "unreact",
+  messages_reactions_destroy_by_body: "unreact",
+  reactions_index: "myReactions",
   interaction_responses_create: "respond",
   direct_messages_create: "openDm",
   searches_show: "search",
@@ -226,8 +228,15 @@ export class SabhaClient {
     return this.call("POST", `/api/v1/messages/${messageId}/reactions`, { text: emoji });
   }
 
-  unreact(messageId: number, reactionId: number): Promise<unknown> {
-    return this.call("DELETE", `/api/v1/messages/${messageId}/reactions/${reactionId}`);
+  /** Takes back the app's reaction by its id, or by the emoji itself when the id is gone. */
+  unreact(messageId: number, reaction: number | string): Promise<unknown> {
+    if (typeof reaction === "string") return this.call("DELETE", `/api/v1/messages/${messageId}/reactions`, { query: { body: reaction } });
+    return this.call("DELETE", `/api/v1/messages/${messageId}/reactions/${reaction}`);
+  }
+
+  /** The app's own reactions, newest first; pass `next_cursor` back as `before` for the next page. */
+  myReactions(query: { before?: string; after?: string; limit?: number } = {}): Promise<unknown> {
+    return this.call("GET", "/api/v1/reactions", { query });
   }
 
   // Statuses and drafts ------------------------------------------------------

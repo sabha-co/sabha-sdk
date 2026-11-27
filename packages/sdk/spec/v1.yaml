@@ -678,9 +678,9 @@ paths:
               type: object
               required: [ body ]
               properties:
-                body: { type: string }
+                body: { type: string, description: "The emoji, or an app's own text of up to 16 characters." }
           text/plain:
-            schema: { type: string, description: The emoji. }
+            schema: { type: string, description: "The emoji, or an app's own text of up to 16 characters." }
       responses:
         "201":
           description: The reaction.
@@ -695,6 +695,18 @@ paths:
         <<: *keyed
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Invalid" }
+    delete:
+      operationId: messages_reactions_destroy_by_body
+      x-sabha-action: messages/reactions#destroy
+      x-sabha-permission: post
+      x-sabha-idempotency: natural
+      summary: Take back the app's reaction by its emoji, as Slack's reactions.remove does, so the app needn't keep the id.
+      parameters:
+        - { name: body, in: query, required: true, schema: { type: string }, description: "The emoji, or the app's own text." }
+      responses:
+        "204": { description: Removed. }
+        <<: *keyed
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/messages/{message_id}/reactions/{id}:
     parameters: [ { $ref: "#/components/parameters/MessageId" }, { $ref: "#/components/parameters/Id" } ]
@@ -816,6 +828,47 @@ paths:
         <<: *keyed
         "422": { $ref: "#/components/responses/Invalid" }
         "500": { $ref: "#/components/responses/Invalid" }
+
+  /api/v1/reactions:
+    get:
+      operationId: reactions_index
+      x-sabha-action: reactions#index
+      x-sabha-permission: read_messages
+      x-sabha-idempotency: natural
+      summary: The app's own reactions, newest first, on messages it can still read. Slack's reactions.list, with each reaction's id.
+      parameters:
+        - { name: before, in: query, schema: { type: string }, description: "An ISO 8601 time, or the next_cursor of the page before." }
+        - { name: after, in: query, schema: { type: string }, description: An ISO 8601 time. }
+        - { name: limit, in: query, schema: { type: integer }, description: "1 to 200; 50 by default." }
+      responses:
+        "200":
+          description: A page of reactions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ reactions, has_more, next_cursor ]
+                properties:
+                  reactions:
+                    type: array
+                    items:
+                      type: object
+                      required: [ id, body, message_id, channel, created_at ]
+                      properties:
+                        id: { type: integer }
+                        body: { type: string }
+                        message_id: { type: integer }
+                        channel:
+                          type: object
+                          required: [ id, name ]
+                          properties:
+                            id: { type: integer }
+                            name: { type: [ string, "null" ] }
+                        created_at: { type: string }
+                  has_more: { type: boolean }
+                  next_cursor: { type: [ string, "null" ] }
+        <<: *keyed
+        "422": { $ref: "#/components/responses/Invalid" }
 
   /api/v1/search:
     get:
